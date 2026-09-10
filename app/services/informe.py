@@ -1,5 +1,6 @@
 """Agregados del mes y del año de servicio, al estilo del informe S-1."""
 
+import math
 from dataclasses import dataclass
 
 from app.dominio import meses_del_anio
@@ -74,8 +75,10 @@ def informe_mensual(sesion, anio: int, mes: int) -> InformeMensual:
             destino.horas += registro.horas or 0
 
     regulares = filas["precursor_regular"]
+    # Redondeo medio hacia arriba, no el bancario de round(): en un informe que
+    # se presenta, 66.5 debe salir 67, no 66.
     promedio = (
-        round((regulares.horas or 0) / regulares.informaron)
+        math.floor((regulares.horas or 0) / regulares.informaron + 0.5)
         if regulares.informaron
         else None
     )

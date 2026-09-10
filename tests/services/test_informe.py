@@ -104,6 +104,27 @@ def test_suma_horas_por_categoria_y_promedio_de_regulares(sesion):
     assert resultado.promedio_horas_precursor_regular == 67
 
 
+def test_promedio_redondea_medio_hacia_arriba(sesion):
+    """66.5 debe salir 67. round() de Python daría 66 por redondeo bancario."""
+    uno = publicadores.crear(sesion, "Regular Uno")
+    dos = publicadores.crear(sesion, "Regular Dos")
+    for p in (uno, dos):
+        nombramientos.crear(sesion, p.id, "precursor_regular", date(2025, 9, 1))
+    registros.guardar_mes(
+        sesion,
+        2026,
+        1,
+        [
+            registros.EntradaMes(publicador_id=uno.id, participo=True, horas=65),
+            registros.EntradaMes(publicador_id=dos.id, participo=True, horas=68),
+        ],
+    )
+
+    resultado = informe.informe_mensual(sesion, 2026, 1)
+
+    assert resultado.promedio_horas_precursor_regular == 67
+
+
 def test_promedio_es_none_sin_precursores_regulares(sesion):
     assert informe.informe_mensual(sesion, 2026, 1).promedio_horas_precursor_regular is None
 
