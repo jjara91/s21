@@ -93,3 +93,32 @@ def test_nombre_de_archivo_sin_caracteres_de_ruta():
     assert exportar.nombre_archivo("Ana/María \\ Pérez", 2026) == (
         "Ana-María - Pérez - 2026.pdf"
     )
+
+
+def test_fecha_ilegible_usa_fallback_crudo(plantilla_sintetica):
+    """Verifica que _fecha(None, crudo) cae a crudo cuando la fecha no se pudo interpretar."""
+    tarjeta = DatosTarjeta.vacia(nombre="Torres López Mauricio", anio_servicio=2025)
+    tarjeta.fecha_nacimiento = None
+    tarjeta.fecha_nacimiento_cruda = "29 de febrero de 1984"
+
+    pdf = exportar.rellenar(plantilla_sintetica.read_bytes(), tarjeta)
+    leida = importar.leer_tarjeta(pdf)
+
+    assert leida.fecha_nacimiento is None
+    assert leida.fecha_nacimiento_cruda == "29 de febrero de 1984"
+
+
+def test_casilla_desmarcada_escribe_off_en_pdf(plantilla_sintetica):
+    """Verifica que /Off se escribe literalmente para meses sin participación."""
+    from pypdf import PdfReader
+    from io import BytesIO
+    from app.pdf import campos
+
+    tarjeta = DatosTarjeta.vacia(nombre="Morales Silva Carla", anio_servicio=2025)
+    # No marcamos participación en mes 1 (queda False por defecto)
+
+    pdf = exportar.rellenar(plantilla_sintetica.read_bytes(), tarjeta)
+    campos_leidos = PdfReader(BytesIO(pdf)).get_fields()
+
+    campo_participo_mes_1 = campos.campo_fila("participo", 1)
+    assert campos_leidos[campo_participo_mes_1].get("/V") == campos.DESMARCADA
