@@ -1,0 +1,10 @@
+{% extends "base.html" %}
+{% block contenido %}
+<h1>Iniciar sesión</h1>
+{% if error %}<p class="error">{{ error }}</p>{% endif %}
+<form method="post" action="/entrar">
+  <label>Usuario <input name="usuario" autofocus required></label>
+  <label>Clave <input name="clave" type="password" required></label>
+  <button type="submit">Entrar</button>
+</form>
+{% endblock %}

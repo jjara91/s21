@@ -1,0 +1,16 @@
+:root { font-family: system-ui, sans-serif; }
+body { margin: 0; color: #1c1c1c; background: #fbfbfa; }
+nav { display: flex; gap: 1rem; align-items: center; padding: .75rem 1rem;
+      background: #23405a; }
+nav a { color: #fff; text-decoration: none; }
+nav a:hover { text-decoration: underline; }
+nav .derecha { margin-left: auto; }
+main { padding: 1rem; max-width: 72rem; }
+table { border-collapse: collapse; width: 100%; }
+th, td { border: 1px solid #d6d6d0; padding: .3rem .5rem; text-align: left; }
+th { background: #eeeeea; }
+tr.conflicto td { background: #fff1f0; }
+input[type="number"] { width: 5rem; }
+label { display: block; margin: .4rem 0; }
+.error { color: #a11; }
+.numero { text-align: right; }

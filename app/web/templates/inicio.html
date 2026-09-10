@@ -1,0 +1,20 @@
+{% extends "base.html" %}
+{% block contenido %}
+<h1>Año de servicio {{ anio_servicio }}</h1>
+<p><a href="/grilla?anio={{ hoy.year }}&amp;mes={{ hoy.month }}">
+  Cargar {{ hoy.month | mes_nombre }} de {{ hoy.year }}</a></p>
+
+<h2>Alertas ({{ alertas | length }})</h2>
+{% if alertas %}
+<ul>
+  {% for alerta in alertas %}
+  <li>
+    <a href="/publicadores/{{ alerta.publicador.id }}">{{ alerta.publicador.nombre_completo }}</a>
+    — {{ alerta.estado }} ({{ alerta.meses_sin_informar | length }} meses sin informar)
+  </li>
+  {% endfor %}
+</ul>
+{% else %}
+<p>Sin publicadores irregulares ni inactivos.</p>
+{% endif %}
+{% endblock %}
