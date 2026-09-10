@@ -2454,6 +2454,11 @@ def test_aplicar_notas_sugeridas_llena_solo_las_notas_vacias(sesion):
     ana = _ana(sesion)
     nombramientos.crear(sesion, ana.id, "precursor_regular", date(2025, 10, 5))
     nombramientos.crear(sesion, ana.id, "siervo_ministerial", date(2026, 3, 1))
+    # los dos meses tienen que estar cargados: la nota se escribe sobre una fila
+    # existente, nunca la crea
+    registros.guardar_mes(
+        sesion, 2025, 10, [registros.EntradaMes(publicador_id=ana.id, participo=True)]
+    )
     registros.guardar_mes(
         sesion,
         2026,
@@ -2469,9 +2474,25 @@ def test_aplicar_notas_sugeridas_llena_solo_las_notas_vacias(sesion):
     assert del_anio[3].notas == "ya escrito a mano"
 
 
+def test_aplicar_notas_sugeridas_no_inventa_meses_sin_cargar(sesion):
+    """Un mes sin fila debe seguir sin fila: las alertas distinguen
+    "sin cargar" de "cargado y no informó", y fabricar la fila borraría
+    esa diferencia."""
+    ana = _ana(sesion)
+    nombramientos.crear(sesion, ana.id, "precursor_regular", date(2025, 10, 5))
+
+    escritas = registros.aplicar_notas_sugeridas(sesion, ana.id, 2026)
+
+    assert escritas == 0
+    assert registros.registros_del_anio(sesion, ana.id, 2026) == {}
+
+
 def test_aplicar_notas_sugeridas_es_idempotente(sesion):
     ana = _ana(sesion)
     nombramientos.crear(sesion, ana.id, "precursor_regular", date(2025, 10, 5))
+    registros.guardar_mes(
+        sesion, 2025, 10, [registros.EntradaMes(publicador_id=ana.id, participo=True)]
+    )
 
     registros.aplicar_notas_sugeridas(sesion, ana.id, 2026)
     segunda = registros.aplicar_notas_sugeridas(sesion, ana.id, 2026)
@@ -2522,7 +2543,13 @@ def _registro(
 def guardar_mes(
     sesion: Session, anio: int, mes: int, entradas: list[EntradaMes]
 ) -> int:
-    """Crea o actualiza la fila de cada publicador para ese mes calendario."""
+    """Crea o actualiza la fila de cada publicador para ese mes calendario.
+
+    Sobrescribe la fila entera, `notas` incluidas. Quien llame debe reenviar el
+    valor actual de cada campo que no quiera perder: guardar una `EntradaMes`
+    con `notas=None` borra la nota que hubiera, sea escrita a mano o sugerida
+    por un cambio de privilegio.
+    """
     for entrada in entradas:
         fila = _registro(sesion, entrada.publicador_id, anio, mes) or RegistroMensual(
             publicador_id=entrada.publicador_id, anio=anio, mes=mes
@@ -2608,9 +2635,14 @@ def aplicar_notas_sugeridas(
         propuesta = sugeridas.get(mes)
         if not propuesta:
             continue
-        fila = _registro(sesion, publicador_id, anio, mes) or RegistroMensual(
-            publicador_id=publicador_id, anio=anio, mes=mes
-        )
+        fila = _registro(sesion, publicador_id, anio, mes)
+        # Solo se anota sobre un mes ya cargado. Crear la fila aquí la dejaría
+        # con participo=False, indistinguible de "cargado y no informó", y las
+        # alertas se apoyan en esa diferencia. No se pierde nada: esta función
+        # corre al ver y al exportar la tarjeta, así que la nota aparecerá sola
+        # en cuanto el mes se cargue.
+        if fila is None:
+            continue
         if (fila.notas or "").strip():
             continue
         fila.notas = propuesta
