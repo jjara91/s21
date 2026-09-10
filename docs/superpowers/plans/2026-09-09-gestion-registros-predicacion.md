@@ -3508,12 +3508,14 @@ def analizar(sesion: Session, archivo: str, contenido: bytes) -> Propuesta:
         ya_importado=previa.fecha if previa else None,
     )
 
-    if existente is not None:
-        for campo, etiqueta in CAMPOS_CABECERA:
-            actual = getattr(existente, campo)
-            nuevo = getattr(datos, campo)
-            if nuevo is not None and nuevo != actual:
-                propuesta.diferencias.append(Diferencia(campo, etiqueta, actual, nuevo))
+    # También para un publicador nuevo: si aquí no se listaran los campos, la
+    # decisión llegaría con `aceptar_campos` vacío y `aplicar` lo crearía solo
+    # con el nombre, tirando la fecha de bautismo y el resto de la cabecera.
+    for campo, etiqueta in CAMPOS_CABECERA:
+        actual = getattr(existente, campo) if existente is not None else None
+        nuevo = getattr(datos, campo)
+        if nuevo is not None and nuevo != actual:
+            propuesta.diferencias.append(Diferencia(campo, etiqueta, actual, nuevo))
 
     if datos.anio_servicio is not None:
         inicio, fin = rango_anio_servicio(datos.anio_servicio)
