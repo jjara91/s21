@@ -14,7 +14,16 @@ from app.services.grupos import GrupoNoEncontrado
 from app.services.publicadores import PublicadorNoEncontrado
 from app.web.errores import DatosInvalidos
 from app.web.plantillas import DIRECTORIO, plantillas
-from app.web.routers import grilla, grupos, importar, inicio, publicadores, sesion, tarjetas
+from app.web.routers import (
+    grilla,
+    grupos,
+    importar,
+    informes,
+    inicio,
+    publicadores,
+    sesion,
+    tarjetas,
+)
 
 
 @asynccontextmanager
@@ -95,3 +104,4 @@ app.include_router(grupos.router)
 app.include_router(grilla.router)
 app.include_router(tarjetas.router)
 app.include_router(importar.router)
+app.include_router(informes.router)

@@ -1,0 +1,19 @@
+{% extends "base.html" %}
+{% block contenido %}
+<h1>Alertas</h1>
+
+{% if alertas %}
+<table>
+  <tr><th>Publicador</th><th>Estado</th><th>Meses sin informar</th></tr>
+  {% for alerta in alertas %}
+  <tr>
+    <td><a href="/publicadores/{{ alerta.publicador.id }}">{{ alerta.publicador.nombre_completo }}</a></td>
+    <td>{{ alerta.estado }}</td>
+    <td>{% for anio, mes in alerta.meses_sin_informar %}{{ mes | mes_nombre }} {{ anio }}{% if not loop.last %}, {% endif %}{% endfor %}</td>
+  </tr>
+  {% endfor %}
+</table>
+{% else %}
+<p>Sin publicadores irregulares ni inactivos.</p>
+{% endif %}
+{% endblock %}

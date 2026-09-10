@@ -1,0 +1,59 @@
+{% extends "base.html" %}
+{% block contenido %}
+{% if informe %}
+<h1>{{ mes | mes_nombre }} de {{ anio }}</h1>
+
+<form method="get" action="/informe">
+  <label>Mes
+    <select name="mes">
+      {% for m in [1,2,3,4,5,6,7,8,9,10,11,12] %}
+      <option value="{{ m }}" {% if m == mes %}selected{% endif %}>{{ m | mes_nombre }}</option>
+      {% endfor %}
+    </select></label>
+  <label>Año <input type="number" name="anio" value="{{ anio }}"></label>
+  <button type="submit">Ver</button>
+</form>
+
+<table>
+  <tr><th></th><th class="numero">Informaron</th><th class="numero">Cursos</th>
+      <th class="numero">Horas</th></tr>
+  {% for fila in informe.filas %}
+  <tr>
+    <td>{{ fila.etiqueta }}</td>
+    <td class="numero">{{ fila.informaron }}</td>
+    <td class="numero">{{ fila.cursos }}</td>
+    <td class="numero">{{ fila.horas if fila.horas is not none else '—' }}</td>
+  </tr>
+  {% endfor %}
+  <tr>
+    <th>Total</th>
+    <td class="numero">{{ informe.total_informaron }}</td>
+    <td class="numero">{{ informe.total_cursos }}</td>
+    <td class="numero">{{ informe.total_horas }}</td>
+  </tr>
+  <tr><td>No informaron</td><td class="numero">{{ informe.no_informaron }}</td><td></td><td></td></tr>
+  <tr><td>Promedio horas precursor regular</td><td></td><td></td>
+      <td class="numero">{{ informe.promedio_horas_precursor_regular if informe.promedio_horas_precursor_regular is not none else '—' }}</td></tr>
+</table>
+
+<p><a href="/informe/anual">Ver el año completo</a></p>
+{% else %}
+<h1>Año de servicio {{ anio_servicio }}</h1>
+
+<table>
+  <tr>
+    <th>Mes</th><th class="numero">Informaron</th><th class="numero">No informaron</th>
+    <th class="numero">Cursos</th><th class="numero">Horas</th>
+  </tr>
+  {% for mensual in anual %}
+  <tr>
+    <td><a href="/informe?anio={{ mensual.anio }}&amp;mes={{ mensual.mes }}">{{ mensual.mes | mes_nombre }}</a></td>
+    <td class="numero">{{ mensual.total_informaron }}</td>
+    <td class="numero">{{ mensual.no_informaron }}</td>
+    <td class="numero">{{ mensual.total_cursos }}</td>
+    <td class="numero">{{ mensual.total_horas }}</td>
+  </tr>
+  {% endfor %}
+</table>
+{% endif %}
+{% endblock %}
