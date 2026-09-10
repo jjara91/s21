@@ -3066,6 +3066,19 @@ def test_el_mes_en_curso_no_entra_en_la_ventana(sesion):
     assert alertas.calcular(sesion, date(2026, 3, 15)) == []
 
 
+def test_los_registros_fuera_de_la_ventana_no_cuentan(sesion):
+    """Informar mucho antes de la ventana no evita la alerta, y la consulta
+    acotada no debe dejar fuera ningún mes que sí pertenezca a ella."""
+    ana = publicadores.crear(sesion, "Perez Ana")
+    _informar(sesion, ana.id, [(2020, 5), (2021, 8)])  # muy anteriores
+    _informar(sesion, ana.id, alertas.ventana(date(2026, 3, 15))[:2])
+
+    resultado = alertas.calcular(sesion, date(2026, 3, 15))
+
+    assert resultado[0].estado == "irregular"
+    assert len(resultado[0].meses_sin_informar) == 4
+
+
 def test_las_bajas_no_generan_alertas(sesion):
     ana = publicadores.crear(sesion, "Perez Ana")
     publicadores.dar_de_baja(sesion, ana.id, date(2026, 1, 10), "mudado")
@@ -3086,6 +3099,7 @@ Expected: FAIL con `ImportError: cannot import name 'alertas'`
 from dataclasses import dataclass
 from datetime import date
 
+from sqlalchemy import and_, or_
 from sqlmodel import Session, select
 
 from app.models import Publicador, RegistroMensual
@@ -3121,6 +3135,15 @@ def calcular(sesion: Session, hoy: date) -> list[Alerta]:
         consulta = select(RegistroMensual).where(
             RegistroMensual.publicador_id == publicador.id,
             RegistroMensual.participo == True,  # noqa: E712 - SQLModel necesita ==
+            # Acotado a la ventana. Sin esto la consulta arrastra el historial
+            # completo del publicador para mirar solo seis meses, y ese
+            # historial crece cada año que la aplicación esté en uso.
+            or_(
+                *(
+                    and_(RegistroMensual.anio == anio, RegistroMensual.mes == mes)
+                    for anio, mes in periodos
+                )
+            ),
         )
         informados = {
             (registro.anio, registro.mes) for registro in sesion.exec(consulta).all()
