@@ -96,17 +96,23 @@ def notas_sugeridas(
 ) -> dict[int, str]:
     """Texto propuesto para el mes en que un privilegio empieza o termina."""
     inicio, fin = rango_anio_servicio(anio_servicio)
-    por_mes: dict[tuple[int, int], list[str]] = {}
+    # Clave = mes calendario (1-12). La función calcula su propio rango a partir
+    # de rango_anio_servicio y nunca lo recibe, así que los doce meses de un año
+    # de servicio son únicos: no hay colisión posible entre años distintos.
+    por_mes: dict[int, list[tuple[date, int, str]]] = {}
 
     for nombramiento in listar(sesion, publicador_id):
         etiqueta = ETIQUETAS[nombramiento.tipo]
         if inicio <= nombramiento.desde <= fin:
-            clave = (nombramiento.desde.year, nombramiento.desde.month)
-            por_mes.setdefault(clave, []).append(f"nombrado {etiqueta}")
+            por_mes.setdefault(nombramiento.desde.month, []).append(
+                (nombramiento.desde, nombramiento.id, f"nombrado {etiqueta}")
+            )
         if nombramiento.hasta is not None and inicio <= nombramiento.hasta <= fin:
-            clave = (nombramiento.hasta.year, nombramiento.hasta.month)
-            por_mes.setdefault(clave, []).append(f"deja de ser {etiqueta}")
+            por_mes.setdefault(nombramiento.hasta.month, []).append(
+                (nombramiento.hasta, nombramiento.id, f"deja de ser {etiqueta}")
+            )
 
     return {
-        mes: " · ".join(textos) for (_anio, mes), textos in sorted(por_mes.items())
+        mes: " · ".join(texto for _fecha, _id, texto in sorted(hechos))
+        for mes, hechos in sorted(por_mes.items())
     }

@@ -88,8 +88,20 @@ def test_dos_cambios_en_el_mismo_mes_se_unen(sesion, mauricio):
     sugeridas = nombramientos.notas_sugeridas(sesion, mauricio.id, 2026)
 
     assert sugeridas[5] == (
-        "deja de ser precursor regular · nombrado siervo ministerial"
+        "nombrado siervo ministerial · deja de ser precursor regular"
     )
+
+
+def test_notas_del_mismo_mes_van_en_orden_cronologico_del_hecho(sesion, mauricio):
+    # promoción corriente: nombrado anciano el 2, deja de ser siervo ministerial el 25
+    nombramientos.crear(
+        sesion, mauricio.id, "siervo_ministerial", date(2020, 1, 1), hasta=date(2026, 5, 25)
+    )
+    nombramientos.crear(sesion, mauricio.id, "anciano", date(2026, 5, 2))
+
+    sugeridas = nombramientos.notas_sugeridas(sesion, mauricio.id, 2026)
+
+    assert sugeridas[5] == "nombrado anciano · deja de ser siervo ministerial"
 
 
 def test_cerrar_pone_la_fecha_de_termino(sesion, mauricio):
