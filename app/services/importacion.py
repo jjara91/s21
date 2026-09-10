@@ -7,7 +7,9 @@ todo lo que modifica para que `deshacer` pueda restaurarlo con exactitud.
 
 import hashlib
 import json
+import re
 import shutil
+import time
 import uuid
 from dataclasses import dataclass, field
 from datetime import date, datetime
@@ -360,8 +362,29 @@ def historial(sesion: Session) -> list[tuple[str, datetime, int]]:
     return [(lote, fecha, cantidad) for lote, (fecha, cantidad) in por_lote.items()]
 
 
+class LoteInvalido(Exception):
+    pass
+
+
+PATRON_LOTE = re.compile(r"[0-9a-f]{12}")
+
+DIAS_RETENCION_LOTES = 7
+
+
 def _directorio_lotes() -> Path:
     return cargar_config().data_dir / "subidas"
+
+
+def _directorio_de_lote(lote: str) -> Path:
+    """Ruta del lote, validando la forma del identificador.
+
+    `lote` llega desde la URL y se usa para construir una ruta en disco. Sin
+    esta comprobación, un valor como ".." apuntaría al propio directorio de
+    datos, y `borrar_lote` haría rmtree sobre la base y las tarjetas subidas.
+    """
+    if not PATRON_LOTE.fullmatch(lote):
+        raise LoteInvalido(f"identificador de lote inválido: {lote!r}")
+    return _directorio_lotes() / lote
 
 
 def guardar_lote(archivos: list[tuple[str, bytes]]) -> str:
@@ -376,7 +399,7 @@ def guardar_lote(archivos: list[tuple[str, bytes]]) -> str:
 
 
 def archivos_del_lote(lote: str) -> list[tuple[str, bytes]]:
-    directorio = _directorio_lotes() / lote
+    directorio = _directorio_de_lote(lote)
     if not directorio.exists():
         return []
     return [
@@ -386,4 +409,22 @@ def archivos_del_lote(lote: str) -> list[tuple[str, bytes]]:
 
 
 def borrar_lote(lote: str) -> None:
-    shutil.rmtree(_directorio_lotes() / lote, ignore_errors=True)
+    shutil.rmtree(_directorio_de_lote(lote), ignore_errors=True)
+
+
+def purgar_lotes_viejos(dias: int = DIAS_RETENCION_LOTES) -> int:
+    """Borra los lotes subidos que nadie confirmó ni descartó.
+
+    Son PDF con datos personales de la congregación: no deben quedarse en
+    disco indefinidamente solo porque alguien cerró la pestaña.
+    """
+    directorio = _directorio_lotes()
+    if not directorio.exists():
+        return 0
+    limite = time.time() - dias * 86400
+    borrados = 0
+    for hijo in directorio.iterdir():
+        if hijo.is_dir() and PATRON_LOTE.fullmatch(hijo.name) and hijo.stat().st_mtime < limite:
+            shutil.rmtree(hijo, ignore_errors=True)
+            borrados += 1
+    return borrados

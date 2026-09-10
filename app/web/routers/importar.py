@@ -9,6 +9,7 @@ from app.db import obtener_sesion
 from app.pdf.plantilla import TarjetaInvalida
 from app.services import importacion, nombramientos
 from app.services import publicadores as servicio_publicadores
+from app.services.importacion import LoteInvalido
 from app.web.plantillas import plantillas
 
 router = APIRouter(prefix="/importar")
@@ -26,6 +27,10 @@ def pantalla(
     sesion: Session = Depends(obtener_sesion),
     _usuario: str = Depends(requerir_sesion),
 ):
+    # Un lote que nadie confirmó ni descartó son tarjetas con datos personales
+    # de la congregación que quedarían en disco para siempre; se purgan antes
+    # de mostrar la pantalla.
+    importacion.purgar_lotes_viejos()
     return plantillas.TemplateResponse(
         request, "importar.html", {"historial": importacion.historial(sesion), "errores": []}
     )
@@ -77,9 +82,14 @@ def revisar(
     sesion: Session = Depends(obtener_sesion),
     _usuario: str = Depends(requerir_sesion),
 ):
+    try:
+        archivos = importacion.archivos_del_lote(lote)
+    except LoteInvalido:
+        # Un identificador con forma inválida no es un error del usuario que
+        # merezca explicación, es basura: se trata igual que un lote que no existe.
+        return RedirectResponse("/importar", status_code=303)
     propuestas = [
-        importacion.analizar(sesion, nombre, contenido)
-        for nombre, contenido in importacion.archivos_del_lote(lote)
+        importacion.analizar(sesion, nombre, contenido) for nombre, contenido in archivos
     ]
     if not propuestas:
         return RedirectResponse("/importar", status_code=303)
@@ -102,10 +112,15 @@ async def aplicar(
     sesion: Session = Depends(obtener_sesion),
     _usuario: str = Depends(requerir_sesion),
 ):
+    try:
+        archivos = importacion.archivos_del_lote(lote)
+    except LoteInvalido:
+        return RedirectResponse("/importar", status_code=303)
+
     formulario = await request.form()
     ahora = datetime.now()
 
-    for indice, (nombre, contenido) in enumerate(importacion.archivos_del_lote(lote)):
+    for indice, (nombre, contenido) in enumerate(archivos):
         destino = formulario.get(f"destino_{indice}", "omitir")
         if destino == "omitir":
             continue
@@ -154,5 +169,29 @@ def deshacer(
     sesion: Session = Depends(obtener_sesion),
     _usuario: str = Depends(requerir_sesion),
 ):
-    importacion.deshacer(sesion, lote)
+    # `importacion.deshacer` solo consulta la base por `lote` como texto y
+    # nunca toca el disco, así que hoy no puede lanzar LoteInvalido. Se
+    # captura de todas formas para que esta ruta responda igual que las otras
+    # dos si eso cambiara.
+    try:
+        importacion.deshacer(sesion, lote)
+    except LoteInvalido:
+        pass
+    return RedirectResponse("/importar", status_code=303)
+
+
+@router.post("/{lote}/descartar")
+def descartar(
+    lote: str,
+    _usuario: str = Depends(requerir_sesion),
+):
+    """Borra del disco un lote que el usuario no quiere revisar ni confirmar.
+
+    No toca la base: solo hay PDF en `data/subidas/<lote>/` que borrar, nunca
+    una `Importacion` (esas solo existen después de `aplicar`).
+    """
+    try:
+        importacion.borrar_lote(lote)
+    except LoteInvalido:
+        pass
     return RedirectResponse("/importar", status_code=303)

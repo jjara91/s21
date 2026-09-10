@@ -1,3 +1,5 @@
+import os
+import time
 from datetime import date, datetime
 from io import BytesIO
 
@@ -265,3 +267,55 @@ def test_historial_agrupa_por_lote(sesion, tarjeta_mauricio):
     importacion.aplicar(sesion, _decision_total(propuesta), lote="L1", ahora=AHORA)
 
     assert importacion.historial(sesion) == [("L1", AHORA, 1)]
+
+
+def test_guardar_y_leer_un_lote_conserva_nombre_y_contenido(tmp_path, monkeypatch):
+    monkeypatch.setenv("DATA_DIR", str(tmp_path))
+
+    lote = importacion.guardar_lote([("a.pdf", b"uno"), ("b.pdf", b"dos")])
+
+    assert importacion.archivos_del_lote(lote) == [("a.pdf", b"uno"), ("b.pdf", b"dos")]
+
+
+def test_archivos_del_lote_de_un_lote_inexistente_esta_vacio(tmp_path, monkeypatch):
+    monkeypatch.setenv("DATA_DIR", str(tmp_path))
+
+    assert importacion.archivos_del_lote("0" * 12) == []
+
+
+def test_archivos_del_lote_rechaza_un_identificador_con_forma_invalida(tmp_path, monkeypatch):
+    monkeypatch.setenv("DATA_DIR", str(tmp_path))
+
+    with pytest.raises(importacion.LoteInvalido):
+        importacion.archivos_del_lote("..")
+
+
+def test_borrar_lote_con_travesia_de_directorios_no_borra_nada(tmp_path, monkeypatch):
+    # Es el caso que de verdad importa: sin la validación de la forma del
+    # identificador, esto habría hecho rmtree sobre todo `data/` (la base,
+    # la plantilla y las tarjetas subidas), porque ".." resuelve al propio
+    # directorio de datos.
+    monkeypatch.setenv("DATA_DIR", str(tmp_path))
+    centinela = tmp_path / "centinela.txt"
+    centinela.write_text("no tocar")
+
+    with pytest.raises(importacion.LoteInvalido):
+        importacion.borrar_lote("..")
+
+    assert centinela.exists()
+
+
+def test_purgar_lotes_viejos_borra_los_vencidos_y_deja_los_recientes(tmp_path, monkeypatch):
+    monkeypatch.setenv("DATA_DIR", str(tmp_path))
+    viejo = importacion.guardar_lote([("a.pdf", b"uno")])
+    reciente = importacion.guardar_lote([("b.pdf", b"dos")])
+
+    directorio_viejo = tmp_path / "subidas" / viejo
+    vencido = time.time() - (importacion.DIAS_RETENCION_LOTES + 1) * 86400
+    os.utime(directorio_viejo, (vencido, vencido))
+
+    borrados = importacion.purgar_lotes_viejos()
+
+    assert borrados == 1
+    assert not directorio_viejo.exists()
+    assert (tmp_path / "subidas" / reciente).exists()

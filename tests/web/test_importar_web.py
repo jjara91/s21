@@ -1,8 +1,12 @@
+import os
+import time
 from io import BytesIO
 
 from pypdf import PdfWriter
 
 from app.pdf import campos
+from app.services import importacion as servicio_importacion
+from app.web.routers import importar as router_importar
 from tests.fixtures.sintetico import crear_s21_sintetico
 
 
@@ -116,3 +120,56 @@ def test_el_historial_lista_el_lote_aplicado(cliente, tmp_path):
 
 def test_importar_pide_sesion(cliente_anonimo):
     assert cliente_anonimo.get("/importar", follow_redirects=False).status_code == 303
+
+
+def test_un_lote_con_forma_invalida_no_revienta(cliente, tmp_path):
+    # ".." decodificado desde %2e%2e: antes de validar la forma del
+    # identificador, esto resolvía a data/subidas/.. -> data/ y terminaba en
+    # un 500 al intentar partir por "_" el nombre de un archivo que ya
+    # estuviera ahí (p. ej. s21.db). Hace falta que data/subidas/ ya exista
+    # -de una importación anterior, como en cualquier instalación real- para
+    # que la resolución de ".." tenga algo que listar.
+    _subir(cliente, tmp_path, ["Rojas Mauricio"])
+
+    assert cliente.get("/importar/%2e%2e", follow_redirects=False).status_code == 303
+    assert cliente.post("/importar/%2e%2e", follow_redirects=False).status_code == 303
+    assert (
+        cliente.post("/importar/%2e%2e/deshacer", follow_redirects=False).status_code == 303
+    )
+    assert (
+        cliente.post("/importar/%2e%2e/descartar", follow_redirects=False).status_code == 303
+    )
+
+
+def test_descartar_borra_los_archivos_sin_tocar_la_base(cliente, tmp_path):
+    revision = _subir(cliente, tmp_path, ["Rojas Mauricio"])
+    lote = revision.text.split('action="/importar/')[1].split('"')[0]
+
+    respuesta = cliente.post(f"/importar/{lote}/descartar", follow_redirects=False)
+
+    assert respuesta.status_code == 303
+    # el lote ya no existe en disco: revisarlo de nuevo redirige a /importar
+    assert cliente.get(f"/importar/{lote}", follow_redirects=False).status_code == 303
+    assert "No hay publicadores" in cliente.get("/publicadores").text
+
+
+def test_subir_rechaza_un_archivo_que_supera_el_limite(cliente, tmp_path, monkeypatch):
+    monkeypatch.setattr(router_importar, "LIMITE_SUBIDA", 10)
+
+    respuesta = _subir(cliente, tmp_path, ["Rojas Mauricio"])
+
+    assert respuesta.status_code == 400
+    assert "supera el límite" in respuesta.text
+    # nada se guardó: ni en disco (no hay lote que revisar) ni en la base
+    assert "No hay publicadores" in cliente.get("/publicadores").text
+
+
+def test_importar_purga_los_lotes_abandonados_al_entrar(cliente, tmp_path):
+    lote = servicio_importacion.guardar_lote([("a.pdf", b"contenido")])
+    directorio = tmp_path / "subidas" / lote
+    vencido = time.time() - (servicio_importacion.DIAS_RETENCION_LOTES + 1) * 86400
+    os.utime(directorio, (vencido, vencido))
+
+    cliente.get("/importar")
+
+    assert not directorio.exists()
