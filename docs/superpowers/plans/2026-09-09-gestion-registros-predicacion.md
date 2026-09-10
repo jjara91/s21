@@ -2069,109 +2069,109 @@ from app.services import nombramientos, publicadores
 
 
 @pytest.fixture
-def javier(sesion):
+def mauricio(sesion):
     return publicadores.crear(sesion, "Rojas Vega Mauricio")
 
 
-def test_un_nombramiento_que_empieza_en_septiembre_marca_el_anio_siguiente(sesion, javier):
-    nombramientos.crear(sesion, javier.id, "precursor_regular", date(2025, 9, 1))
+def test_un_nombramiento_que_empieza_en_septiembre_marca_el_anio_siguiente(sesion, mauricio):
+    nombramientos.crear(sesion, mauricio.id, "precursor_regular", date(2025, 9, 1))
 
-    assert nombramientos.tipos_en_anio(sesion, javier.id, 2025) == set()
-    assert nombramientos.tipos_en_anio(sesion, javier.id, 2026) == {"precursor_regular"}
+    assert nombramientos.tipos_en_anio(sesion, mauricio.id, 2025) == set()
+    assert nombramientos.tipos_en_anio(sesion, mauricio.id, 2026) == {"precursor_regular"}
 
 
 def test_un_nombramiento_cerrado_el_31_de_agosto_marca_ese_anio_y_no_el_siguiente(
-    sesion, javier
+    sesion, mauricio
 ):
     nombramientos.crear(
-        sesion, javier.id, "anciano", date(2020, 1, 1), hasta=date(2025, 8, 31)
+        sesion, mauricio.id, "anciano", date(2020, 1, 1), hasta=date(2025, 8, 31)
     )
 
-    assert nombramientos.tipos_en_anio(sesion, javier.id, 2025) == {"anciano"}
-    assert nombramientos.tipos_en_anio(sesion, javier.id, 2026) == set()
+    assert nombramientos.tipos_en_anio(sesion, mauricio.id, 2025) == {"anciano"}
+    assert nombramientos.tipos_en_anio(sesion, mauricio.id, 2026) == set()
 
 
-def test_un_nombramiento_a_caballo_marca_los_dos_anios(sesion, javier):
+def test_un_nombramiento_a_caballo_marca_los_dos_anios(sesion, mauricio):
     nombramientos.crear(
-        sesion, javier.id, "precursor_regular", date(2025, 7, 15), hasta=date(2025, 9, 20)
+        sesion, mauricio.id, "precursor_regular", date(2025, 7, 15), hasta=date(2025, 9, 20)
     )
 
-    assert nombramientos.tipos_en_anio(sesion, javier.id, 2025) == {"precursor_regular"}
-    assert nombramientos.tipos_en_anio(sesion, javier.id, 2026) == {"precursor_regular"}
+    assert nombramientos.tipos_en_anio(sesion, mauricio.id, 2025) == {"precursor_regular"}
+    assert nombramientos.tipos_en_anio(sesion, mauricio.id, 2026) == {"precursor_regular"}
 
 
-def test_un_nombramiento_vigente_marca_todos_los_anios_desde_su_inicio(sesion, javier):
-    nombramientos.crear(sesion, javier.id, "siervo_ministerial", date(2025, 7, 1))
+def test_un_nombramiento_vigente_marca_todos_los_anios_desde_su_inicio(sesion, mauricio):
+    nombramientos.crear(sesion, mauricio.id, "siervo_ministerial", date(2025, 7, 1))
 
-    assert nombramientos.tipos_en_anio(sesion, javier.id, 2024) == set()
-    assert nombramientos.tipos_en_anio(sesion, javier.id, 2025) == {"siervo_ministerial"}
-    assert nombramientos.tipos_en_anio(sesion, javier.id, 2030) == {"siervo_ministerial"}
+    assert nombramientos.tipos_en_anio(sesion, mauricio.id, 2024) == set()
+    assert nombramientos.tipos_en_anio(sesion, mauricio.id, 2025) == {"siervo_ministerial"}
+    assert nombramientos.tipos_en_anio(sesion, mauricio.id, 2030) == {"siervo_ministerial"}
 
 
-def test_tipos_en_mes_usa_el_mes_completo(sesion, javier):
+def test_tipos_en_mes_usa_el_mes_completo(sesion, mauricio):
     # termina el 5 de marzo: marzo sigue contando, abril ya no
     nombramientos.crear(
-        sesion, javier.id, "precursor_regular", date(2026, 1, 1), hasta=date(2026, 3, 5)
+        sesion, mauricio.id, "precursor_regular", date(2026, 1, 1), hasta=date(2026, 3, 5)
     )
 
-    assert nombramientos.tipos_en_mes(sesion, javier.id, 2026, 3) == {"precursor_regular"}
-    assert nombramientos.tipos_en_mes(sesion, javier.id, 2026, 4) == set()
+    assert nombramientos.tipos_en_mes(sesion, mauricio.id, 2026, 3) == {"precursor_regular"}
+    assert nombramientos.tipos_en_mes(sesion, mauricio.id, 2026, 4) == set()
 
 
-def test_nota_sugerida_al_ser_nombrado(sesion, javier):
-    nombramientos.crear(sesion, javier.id, "siervo_ministerial", date(2025, 7, 10))
+def test_nota_sugerida_al_ser_nombrado(sesion, mauricio):
+    nombramientos.crear(sesion, mauricio.id, "siervo_ministerial", date(2025, 7, 10))
 
-    assert nombramientos.notas_sugeridas(sesion, javier.id, 2025) == {
+    assert nombramientos.notas_sugeridas(sesion, mauricio.id, 2025) == {
         7: "nombrado siervo ministerial"
     }
 
 
-def test_nota_sugerida_al_dejar_el_privilegio(sesion, javier):
+def test_nota_sugerida_al_dejar_el_privilegio(sesion, mauricio):
     nombramientos.crear(
-        sesion, javier.id, "precursor_regular", date(2024, 1, 1), hasta=date(2026, 2, 28)
+        sesion, mauricio.id, "precursor_regular", date(2024, 1, 1), hasta=date(2026, 2, 28)
     )
 
-    assert nombramientos.notas_sugeridas(sesion, javier.id, 2026) == {
+    assert nombramientos.notas_sugeridas(sesion, mauricio.id, 2026) == {
         2: "deja de ser precursor regular"
     }
 
 
-def test_no_sugiere_nada_fuera_del_anio_de_servicio(sesion, javier):
-    nombramientos.crear(sesion, javier.id, "anciano", date(2020, 3, 1))
+def test_no_sugiere_nada_fuera_del_anio_de_servicio(sesion, mauricio):
+    nombramientos.crear(sesion, mauricio.id, "anciano", date(2020, 3, 1))
 
-    assert nombramientos.notas_sugeridas(sesion, javier.id, 2026) == {}
+    assert nombramientos.notas_sugeridas(sesion, mauricio.id, 2026) == {}
 
 
-def test_dos_cambios_en_el_mismo_mes_se_unen(sesion, javier):
+def test_dos_cambios_en_el_mismo_mes_se_unen(sesion, mauricio):
     nombramientos.crear(
-        sesion, javier.id, "precursor_regular", date(2024, 1, 1), hasta=date(2026, 5, 31)
+        sesion, mauricio.id, "precursor_regular", date(2024, 1, 1), hasta=date(2026, 5, 31)
     )
-    nombramientos.crear(sesion, javier.id, "siervo_ministerial", date(2026, 5, 12))
+    nombramientos.crear(sesion, mauricio.id, "siervo_ministerial", date(2026, 5, 12))
 
-    sugeridas = nombramientos.notas_sugeridas(sesion, javier.id, 2026)
+    sugeridas = nombramientos.notas_sugeridas(sesion, mauricio.id, 2026)
 
     assert sugeridas[5] == (
         "deja de ser precursor regular · nombrado siervo ministerial"
     )
 
 
-def test_cerrar_pone_la_fecha_de_termino(sesion, javier):
-    creado = nombramientos.crear(sesion, javier.id, "anciano", date(2020, 1, 1))
+def test_cerrar_pone_la_fecha_de_termino(sesion, mauricio):
+    creado = nombramientos.crear(sesion, mauricio.id, "anciano", date(2020, 1, 1))
 
     cerrado = nombramientos.cerrar(sesion, creado.id, date(2026, 4, 30))
 
     assert cerrado.hasta == date(2026, 4, 30)
 
 
-def test_crear_rechaza_un_tipo_desconocido(sesion, javier):
+def test_crear_rechaza_un_tipo_desconocido(sesion, mauricio):
     with pytest.raises(ValueError):
-        nombramientos.crear(sesion, javier.id, "capitan", date(2026, 1, 1))
+        nombramientos.crear(sesion, mauricio.id, "capitan", date(2026, 1, 1))
 
 
-def test_crear_rechaza_un_rango_invertido(sesion, javier):
+def test_crear_rechaza_un_rango_invertido(sesion, mauricio):
     with pytest.raises(ValueError):
         nombramientos.crear(
-            sesion, javier.id, "anciano", date(2026, 5, 1), hasta=date(2026, 4, 1)
+            sesion, mauricio.id, "anciano", date(2026, 5, 1), hasta=date(2026, 4, 1)
         )
 ```
 
@@ -3208,8 +3208,8 @@ def test_propone_el_nombramiento_desde_el_inicio_del_anio_de_servicio(
 
 
 def test_no_propone_un_nombramiento_que_ya_existe(sesion, tarjeta_mauricio):
-    javier = publicadores.crear(sesion, "Mauricio Andrés Rojas Vega")
-    nombramientos.crear(sesion, javier.id, "siervo_ministerial", date(2024, 7, 1))
+    mauricio = publicadores.crear(sesion, "Mauricio Andrés Rojas Vega")
+    nombramientos.crear(sesion, mauricio.id, "siervo_ministerial", date(2024, 7, 1))
 
     propuesta = importacion.analizar(sesion, "mauricio.pdf", tarjeta_mauricio)
 
@@ -3217,9 +3217,9 @@ def test_no_propone_un_nombramiento_que_ya_existe(sesion, tarjeta_mauricio):
 
 
 def test_marca_los_meses_que_pisarian_un_valor_distinto(sesion, tarjeta_mauricio):
-    javier = publicadores.crear(sesion, "Mauricio Andrés Rojas Vega")
+    mauricio = publicadores.crear(sesion, "Mauricio Andrés Rojas Vega")
     registros.guardar_mes(
-        sesion, 2024, 9, [registros.EntradaMes(publicador_id=javier.id, horas=99)]
+        sesion, 2024, 9, [registros.EntradaMes(publicador_id=mauricio.id, horas=99)]
     )
 
     propuesta = importacion.analizar(sesion, "mauricio.pdf", tarjeta_mauricio)
@@ -3241,21 +3241,21 @@ def test_aplicar_crea_publicador_nombramientos_y_registros(sesion, tarjeta_mauri
 
     importacion.aplicar(sesion, _decision_total(propuesta), lote="L1", ahora=AHORA)
 
-    javier = publicadores.buscar_por_nombre(sesion, "Mauricio Andrés Rojas Vega")
-    assert javier is not None
-    assert javier.fecha_bautismo == date(2002, 6, 7)
-    assert nombramientos.tipos_en_anio(sesion, javier.id, 2025) == {"siervo_ministerial"}
-    del_anio = registros.registros_del_anio(sesion, javier.id, 2025)
+    mauricio = publicadores.buscar_por_nombre(sesion, "Mauricio Andrés Rojas Vega")
+    assert mauricio is not None
+    assert mauricio.fecha_bautismo == date(2002, 6, 7)
+    assert nombramientos.tipos_en_anio(sesion, mauricio.id, 2025) == {"siervo_ministerial"}
+    del_anio = registros.registros_del_anio(sesion, mauricio.id, 2025)
     assert del_anio[9].horas == 15
     assert del_anio[9].precursor_auxiliar is True
 
 
 def test_aplicar_respeta_los_campos_no_aceptados(sesion, tarjeta_mauricio):
-    javier = publicadores.crear(sesion, "Mauricio Andrés Rojas Vega")
+    mauricio = publicadores.crear(sesion, "Mauricio Andrés Rojas Vega")
     propuesta = importacion.analizar(sesion, "mauricio.pdf", tarjeta_mauricio)
     decision = importacion.Decision(
         propuesta=propuesta,
-        publicador_id=javier.id,
+        publicador_id=mauricio.id,
         aceptar_campos={"fecha_bautismo"},
         aceptar_nombramientos=[],
         aceptar_meses=set(),
@@ -3263,7 +3263,7 @@ def test_aplicar_respeta_los_campos_no_aceptados(sesion, tarjeta_mauricio):
 
     importacion.aplicar(sesion, decision, lote="L1", ahora=AHORA)
 
-    actualizado = publicadores.obtener(sesion, javier.id)
+    actualizado = publicadores.obtener(sesion, mauricio.id)
     assert actualizado.fecha_bautismo == date(2002, 6, 7)
     assert actualizado.fecha_nacimiento is None
 
@@ -3280,8 +3280,8 @@ def test_aplicar_solo_escribe_los_meses_aceptados(sesion, tarjeta_mauricio):
 
     importacion.aplicar(sesion, decision, lote="L1", ahora=AHORA)
 
-    javier = publicadores.buscar_por_nombre(sesion, "Mauricio Andrés Rojas Vega")
-    assert registros.registros_del_anio(sesion, javier.id, 2025).keys() == {10}
+    mauricio = publicadores.buscar_por_nombre(sesion, "Mauricio Andrés Rojas Vega")
+    assert registros.registros_del_anio(sesion, mauricio.id, 2025).keys() == {10}
 
 
 def test_deshacer_borra_el_publicador_creado_por_el_lote(sesion, tarjeta_mauricio):
@@ -3295,18 +3295,18 @@ def test_deshacer_borra_el_publicador_creado_por_el_lote(sesion, tarjeta_maurici
 
 
 def test_deshacer_devuelve_los_registros_a_su_valor_anterior(sesion, tarjeta_mauricio):
-    javier = publicadores.crear(sesion, "Mauricio Andrés Rojas Vega")
+    mauricio = publicadores.crear(sesion, "Mauricio Andrés Rojas Vega")
     registros.guardar_mes(
-        sesion, 2024, 9, [registros.EntradaMes(publicador_id=javier.id, horas=99)]
+        sesion, 2024, 9, [registros.EntradaMes(publicador_id=mauricio.id, horas=99)]
     )
     propuesta = importacion.analizar(sesion, "mauricio.pdf", tarjeta_mauricio)
-    importacion.aplicar(sesion, _decision_total(propuesta, javier.id), lote="L1", ahora=AHORA)
-    assert registros.registros_del_anio(sesion, javier.id, 2025)[9].horas == 15
+    importacion.aplicar(sesion, _decision_total(propuesta, mauricio.id), lote="L1", ahora=AHORA)
+    assert registros.registros_del_anio(sesion, mauricio.id, 2025)[9].horas == 15
 
     importacion.deshacer(sesion, "L1")
 
-    assert publicadores.obtener(sesion, javier.id) is not None
-    assert registros.registros_del_anio(sesion, javier.id, 2025)[9].horas == 99
+    assert publicadores.obtener(sesion, mauricio.id) is not None
+    assert registros.registros_del_anio(sesion, mauricio.id, 2025)[9].horas == 99
 
 
 def test_deshacer_dos_veces_no_hace_nada_la_segunda(sesion, tarjeta_mauricio):
