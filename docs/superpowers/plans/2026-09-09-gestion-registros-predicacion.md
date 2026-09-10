@@ -22,7 +22,8 @@
 - Dentro de `app/`, `app/pdf/campos.py` es el único archivo que puede mencionar nombres de campo como `900_1_Text_SanSerif`. Las pruebas de contrato sí escriben esos literales a propósito: son valores testigo frente al formulario real, y derivarlos de `campos.py` las volvería tautológicas.
 - Año de servicio: del 1 de septiembre al 31 de agosto. El año N abarca `[01-09-(N-1), 31-08-N]`.
 - Casillas marcadas: valor `/Yes`. Desmarcadas: `/Off`.
-- Todo acceso a la base pasa por `Session` o `Connection` de SQLAlchemy. Nunca por el cursor DBAPI crudo (`conexion.connection.cursor()`): desde que `crear_engine` fija `isolation_level=None` para que las migraciones sean atómicas, pysqlite ya no gestiona transacciones por su cuenta y un cursor crudo quedaría en autocommit por sentencia.
+- Todo acceso a la base pasa por `Session` o `Connection` de SQLAlchemy.
+- **Ninguna acción del usuario puede acabar en un 500 con traza.** Los routers no parsean fechas a mano ni dejan escapar excepciones: usan los ayudantes de `app/web/errores.py` y los manejadores globales registrados en `app/main.py`, que convierten `DatosInvalidos` y `ValueError` en un 400 con mensaje en español, `PublicadorNoEncontrado` y `GrupoNoEncontrado` en un 404, y `IntegrityError` en un 400. Un enlace viejo, una fecha imposible o dos pestañas abiertas a la vez son situaciones corrientes, no ataques. Nunca por el cursor DBAPI crudo (`conexion.connection.cursor()`): desde que `crear_engine` fija `isolation_level=None` para que las migraciones sean atómicas, pysqlite ya no gestiona transacciones por su cuenta y un cursor crudo quedaría en autocommit por sentencia.
 
 ---
 
