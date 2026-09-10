@@ -3576,6 +3576,34 @@ def _snapshot_registro(registro: RegistroMensual | None) -> dict | None:
     }
 
 
+def _meses_a_tocar(
+    sesion: Session,
+    publicador_id: int,
+    datos: DatosTarjeta,
+    anio_servicio: int | None,
+    aceptar_meses: set[int],
+) -> list[dict]:
+    """Estado actual de cada mes que la importación va a sobrescribir."""
+    if anio_servicio is None:
+        return []
+    tocados = []
+    for fila in datos.meses:
+        if fila.mes not in aceptar_meses:
+            continue
+        anio = _anio_calendario(anio_servicio, fila.mes)
+        actual = sesion.exec(
+            select(RegistroMensual).where(
+                RegistroMensual.publicador_id == publicador_id,
+                RegistroMensual.anio == anio,
+                RegistroMensual.mes == fila.mes,
+            )
+        ).first()
+        tocados.append(
+            {"anio": anio, "mes": fila.mes, "previo": _snapshot_registro(actual)}
+        )
+    return tocados
+
+
 def aplicar(
     sesion: Session, decision: Decision, lote: str, ahora: datetime
 ) -> Importacion:
@@ -3590,6 +3618,35 @@ def aplicar(
         publicador = publicadores.obtener(sesion, decision.publicador_id)
         accion = "actualizado"
         previo_publicador = _snapshot_publicador(publicador)
+
+    # El respaldo se escribe ANTES de tocar nada. Los servicios que se llaman
+    # más abajo hacen commit por su cuenta, así que si el proceso muriera a
+    # mitad de camino y esta fila no existiera todavía, los valores pisados se
+    # habrían perdido sin rastro. Escribiéndola primero, deshacer siempre puede
+    # restaurarlos. Lo único que puede quedar huérfano es un publicador recién
+    # creado o un nombramiento, que se borran a mano y no son datos perdidos.
+    registro = Importacion(
+        archivo=decision.propuesta.archivo,
+        sha256=decision.propuesta.sha256,
+        fecha=ahora,
+        lote=lote,
+        publicador_id=publicador.id,
+        anio_servicio=anio_servicio,
+        accion=accion,
+        estado_previo=json.dumps(
+            {
+                "publicador_creado": previo_publicador is None,
+                "publicador": previo_publicador,
+                "nombramientos_creados": [],
+                "registros": _meses_a_tocar(
+                    sesion, publicador.id, datos, anio_servicio, decision.aceptar_meses
+                ),
+            }
+        ),
+    )
+    sesion.add(registro)
+    sesion.commit()
+    sesion.refresh(registro)
 
     cambios = {
         campo: getattr(datos, campo)
@@ -3606,22 +3663,11 @@ def aplicar(
         )
         nombramientos_creados.append(creado.id)
 
-    registros_tocados = []
     if anio_servicio is not None:
         for fila in datos.meses:
             if fila.mes not in decision.aceptar_meses:
                 continue
             anio = _anio_calendario(anio_servicio, fila.mes)
-            actual = sesion.exec(
-                select(RegistroMensual).where(
-                    RegistroMensual.publicador_id == publicador.id,
-                    RegistroMensual.anio == anio,
-                    RegistroMensual.mes == fila.mes,
-                )
-            ).first()
-            registros_tocados.append(
-                {"anio": anio, "mes": fila.mes, "previo": _snapshot_registro(actual)}
-            )
             registros.guardar_mes(
                 sesion,
                 anio,
@@ -3638,23 +3684,12 @@ def aplicar(
                 ],
             )
 
-    registro = Importacion(
-        archivo=decision.propuesta.archivo,
-        sha256=decision.propuesta.sha256,
-        fecha=ahora,
-        lote=lote,
-        publicador_id=publicador.id,
-        anio_servicio=anio_servicio,
-        accion=accion,
-        estado_previo=json.dumps(
-            {
-                "publicador_creado": previo_publicador is None,
-                "publicador": previo_publicador,
-                "nombramientos_creados": nombramientos_creados,
-                "registros": registros_tocados,
-            }
-        ),
-    )
+    # Los ids de los nombramientos solo existen una vez creados, así que esta
+    # parte del respaldo se completa al final. Si el proceso muriera aquí, lo
+    # peor que queda es un nombramiento huérfano: ningún dato anterior se pierde.
+    estado = json.loads(registro.estado_previo or "{}")
+    estado["nombramientos_creados"] = nombramientos_creados
+    registro.estado_previo = json.dumps(estado)
     sesion.add(registro)
     sesion.commit()
     sesion.refresh(registro)
@@ -3714,11 +3749,16 @@ def _restaurar(sesion: Session, registro: Importacion) -> None:
 
 
 def deshacer(sesion: Session, lote: str) -> int:
+    # Del más nuevo al más viejo. Si dos archivos del mismo lote tocaron el
+    # mismo mes del mismo publicador, deshacer en orden de inserción dejaría el
+    # valor intermedio en vez del original.
     pendientes = sesion.exec(
-        select(Importacion).where(
+        select(Importacion)
+        .where(
             Importacion.lote == lote,
             Importacion.deshecho == False,  # noqa: E712
         )
+        .order_by(Importacion.id.desc())
     ).all()
 
     for registro in pendientes:
