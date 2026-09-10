@@ -30,6 +30,19 @@ def crear_engine(ruta: Path) -> Engine:
         cursor.execute("PRAGMA foreign_keys=ON")
         cursor.close()
 
+    @event.listens_for(engine, "connect")
+    def _sin_autocommit_de_pysqlite(conexion, _registro):  # pragma: no cover - callback
+        # pysqlite (el sqlite3 de la stdlib) solo abre transacción implícita
+        # antes de una sentencia DML: un CREATE TABLE emitido sin transacción
+        # abierta queda confirmado en autocommit aunque el resto del script
+        # falle después. Con isolation_level=None el control del BEGIN pasa a
+        # SQLAlchemy y el DDL entra en la misma transacción que el resto.
+        conexion.isolation_level = None
+
+    @event.listens_for(engine, "begin")
+    def _begin_explicito(conexion):  # pragma: no cover - callback
+        conexion.exec_driver_sql("BEGIN")
+
     return engine
 
 
@@ -53,6 +66,9 @@ def aplicar_migraciones(engine: Engine) -> int:
             numero = int(script.name.split("_", 1)[0])
             if numero <= version:
                 continue
+            # Troceado simple por ";": solo admite sentencias que no tengan un
+            # punto y coma dentro de literales, triggers o bloques BEGIN...END.
+            # Una migración futura con eso necesitará un parser real, no este split.
             for sentencia in script.read_text(encoding="utf-8").split(";"):
                 if sentencia.strip():
                     conexion.execute(text(sentencia))
@@ -63,6 +79,15 @@ def aplicar_migraciones(engine: Engine) -> int:
 
 @lru_cache(maxsize=1)
 def motor() -> Engine:
+    """Engine global perezoso, cacheado a propósito para reusar una sola conexión.
+
+    La caché fija la ruta de la base (`cargar_config().ruta_db`) en la primera
+    llamada y no la vuelve a leer. Quien cambie la configuración después de que
+    `motor()` ya se haya invocado una vez en el proceso —los tests, sobre todo,
+    que suelen variar `DATA_DIR` de un caso a otro— debe llamar antes a
+    `motor.cache_clear()`, o seguirá recibiendo el engine (y la base) de la
+    primera llamada.
+    """
     engine = crear_engine(cargar_config().ruta_db)
     aplicar_migraciones(engine)
     return engine
