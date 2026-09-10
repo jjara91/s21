@@ -76,3 +76,49 @@ def test_exportar_en_lote_combinado_devuelve_un_pdf(cliente, tmp_path):
     )
 
     assert len(PdfReader(BytesIO(respuesta.content)).pages) == 2
+
+
+def test_nombre_con_comilla_tipografica_descarga_ok(cliente, tmp_path):
+    _subir_plantilla(cliente, tmp_path)
+    # comilla tipográfica U+2019, como la que deja pegar texto desde Word o Docs
+    cliente.post("/publicadores", data={"nombre_completo": "O’Higgins Riquelme Ana"})
+
+    respuesta = cliente.get("/publicadores/1/tarjeta/2026.pdf")
+
+    assert respuesta.status_code == 200
+    assert "filename*=utf-8''" in respuesta.headers["content-disposition"]
+
+
+def test_anio_fuera_de_rango_da_400_en_espanol(cliente, tmp_path):
+    _subir_plantilla(cliente, tmp_path)
+    cliente.post("/publicadores", data={"nombre_completo": "Perez Ana"})
+
+    respuesta = cliente.get("/publicadores/1/tarjeta/99999.pdf")
+
+    assert respuesta.status_code == 400
+    assert "out of range" not in respuesta.text
+    assert "fuera de rango" in respuesta.text
+
+
+def test_subir_algo_que_no_es_pdf_da_mensaje_en_espanol(cliente):
+    respuesta = cliente.post(
+        "/plantilla",
+        files={"archivo": ("no-es-pdf.pdf", b"esto no es un PDF", "application/pdf")},
+    )
+
+    assert respuesta.status_code == 400
+    texto = respuesta.text.lower()
+    assert "stream" not in texto
+    assert "unexpectedly" not in texto
+
+
+def test_archivo_demasiado_grande_se_rechaza(cliente):
+    enorme = b"%" * (20 * 1024 * 1024 + 1)
+
+    respuesta = cliente.post(
+        "/plantilla",
+        files={"archivo": ("grande.pdf", enorme, "application/pdf")},
+    )
+
+    assert respuesta.status_code == 400
+    assert "MB" in respuesta.text

@@ -18,7 +18,13 @@ def _leer(contenido: bytes) -> PdfReader:
     try:
         return PdfReader(BytesIO(contenido))
     except (PdfReadError, OSError, ValueError) as error:
-        raise TarjetaInvalida(f"el archivo no se pudo abrir como PDF: {error}") from error
+        # El texto de `error` viene de pypdf y sale en inglés (p. ej. "Stream
+        # has ended unexpectedly"); no se expone al usuario. La causa original
+        # queda igual disponible en la traza del log gracias al `from error`.
+        raise TarjetaInvalida(
+            "El archivo no se pudo abrir como PDF. Comprueba que subiste el "
+            "formulario S-21 y que el archivo no está dañado."
+        ) from error
 
 
 def validar_es_s21(contenido: bytes) -> None:

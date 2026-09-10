@@ -24,3 +24,15 @@ def fecha_opcional(valor: str | None, etiqueta: str) -> date | None:
     if not (valor or "").strip():
         return None
     return fecha_obligatoria(valor, etiqueta)
+
+
+ANIO_MINIMO, ANIO_MAXIMO = 1950, 2100
+
+
+def anio_de_servicio(valor: int) -> int:
+    if not ANIO_MINIMO <= valor <= ANIO_MAXIMO:
+        raise DatosInvalidos(
+            f"El año de servicio {valor} está fuera de rango. "
+            f"Debe estar entre {ANIO_MINIMO} y {ANIO_MAXIMO}."
+        )
+    return valor
