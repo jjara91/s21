@@ -2,6 +2,12 @@
 {% block contenido %}
 <h1>{{ publicador.nombre_completo }}</h1>
 
+<p>Tarjetas:
+  {% for anio in [2024, 2025, 2026, 2027] %}
+  <a href="/publicadores/{{ publicador.id }}/tarjeta/{{ anio }}">{{ anio }}</a>
+  {% endfor %}
+</p>
+
 <form method="post" action="/publicadores/{{ publicador.id }}">
   <label>Nombre completo
     <input name="nombre_completo" value="{{ publicador.nombre_completo }}" required></label>

@@ -1,0 +1,20 @@
+{% extends "base.html" %}
+{% block contenido %}
+<h1>Exportar tarjetas</h1>
+
+<form method="post" action="/exportar">
+  <label>Año de servicio
+    <input type="number" name="anio_servicio" value="{{ anio_servicio }}" required></label>
+  <label>Grupo
+    <select name="grupo_id"><option value="">Toda la congregación</option>
+      {% for grupo in grupos %}<option value="{{ grupo.id }}">{{ grupo.nombre }}</option>{% endfor %}
+    </select></label>
+  <label>Formato
+    <select name="formato">
+      <option value="zip">ZIP con un PDF por publicador</option>
+      <option value="combinado">Un solo PDF para imprimir</option>
+    </select></label>
+  <label><input type="checkbox" name="aplanado" value="true"> Solo lectura (aplanado)</label>
+  <button type="submit">Exportar</button>
+</form>
+{% endblock %}

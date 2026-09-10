@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+{% block contenido %}
+<h1>{{ publicador.nombre_completo }} — año {{ anio_servicio }}</h1>
+
+<p>
+  <a href="/publicadores/{{ publicador.id }}/tarjeta/{{ anio_servicio }}.pdf">PDF</a>
+  ·
+  <a href="/publicadores/{{ publicador.id }}/tarjeta/{{ anio_servicio }}.pdf?aplanado=1">PDF solo lectura</a>
+  ·
+  <a href="/publicadores/{{ publicador.id }}/tarjeta/{{ anio_servicio - 1 }}">← {{ anio_servicio - 1 }}</a>
+  ·
+  <a href="/publicadores/{{ publicador.id }}/tarjeta/{{ anio_servicio + 1 }}">{{ anio_servicio + 1 }} →</a>
+</p>
+
+<table>
+  <tr><th>Mes</th><th>Participó</th><th>Cursos</th><th>Prec. auxiliar</th><th>Horas</th><th>Notas</th></tr>
+  {% for fila in tarjeta.meses %}
+  <tr>
+    <td>{{ fila.mes | mes_nombre }}</td>
+    <td>{{ 'sí' if fila.participo else '' }}</td>
+    <td class="numero">{{ fila.cursos_biblicos if fila.cursos_biblicos is not none else '' }}</td>
+    <td>{{ 'sí' if fila.precursor_auxiliar else '' }}</td>
+    <td class="numero">{{ fila.horas if fila.horas is not none else '' }}</td>
+    <td>{{ fila.notas or '' }}</td>
+  </tr>
+  {% endfor %}
+  <tr><th>Total</th><td colspan="3"></td>
+      <td class="numero">{{ tarjeta.total_horas() if tarjeta.total_horas() is not none else '' }}</td>
+      <td></td></tr>
+</table>
+{% endblock %}

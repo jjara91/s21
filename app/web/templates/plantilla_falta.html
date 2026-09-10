@@ -1,0 +1,19 @@
+{% extends "base.html" %}
+{% block contenido %}
+<h1>Plantilla del formulario S-21</h1>
+
+{% if hay_plantilla %}
+<p>Ya hay una plantilla guardada. Puedes reemplazarla subiendo otra tarjeta.</p>
+{% else %}
+<p>Para generar tarjetas hace falta el formulario oficial. Sube cualquier tarjeta
+S-21 rellenable, llena o vacía: la aplicación le borra los datos y guarda solo el
+formulario en blanco.</p>
+{% endif %}
+
+{% if error %}<p class="error">{{ error }}</p>{% endif %}
+
+<form method="post" action="/plantilla" enctype="multipart/form-data">
+  <input type="file" name="archivo" accept="application/pdf" required>
+  <button type="submit">Guardar plantilla</button>
+</form>
+{% endblock %}
