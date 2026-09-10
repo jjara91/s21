@@ -171,3 +171,43 @@ def test_aplanar_no_altera_el_pdf_de_entrada(plantilla_sintetica):
     exportar.aplanar(editable)
 
     assert len(PdfReader(BytesIO(editable)).get_fields() or {}) == 75
+
+
+def test_aplanar_omite_widgets_sin_apariencia(plantilla_sintetica):
+    """Verifica que widgets sin /AP se omiten sin error, como es deliberado."""
+    from io import BytesIO
+
+    from pypdf import PdfReader, PdfWriter
+    from pypdf.generic import NameObject
+
+    # Rellenar un PDF
+    editable = exportar.rellenar(plantilla_sintetica.read_bytes(), _tarjeta_completa())
+
+    # Modificar el PDF: borrar /AP de la primera anotación para simular un widget sin apariencia
+    escritor = PdfWriter(clone_from=BytesIO(editable))
+    pagina = escritor.pages[0]
+    anotaciones = pagina.get("/Annots") or []
+    if anotaciones:
+        widget = anotaciones[0].get_object()
+        if "/AP" in widget:
+            del widget[NameObject("/AP")]
+
+    # Guardar el PDF modificado en bytes
+    salida = BytesIO()
+    escritor.write(salida)
+    pdf_sin_apariencia = salida.getvalue()
+
+    # Aplanar debe funcionar sin excepción
+    aplanado = exportar.aplanar(pdf_sin_apariencia)
+
+    # El PDF aplanado debe ser válido
+    assert aplanado is not None
+    assert len(aplanado) > 0
+
+    # El PDF aplanado no debe tener campos
+    assert PdfReader(BytesIO(aplanado)).get_fields() in (None, {})
+
+    # Los valores que tienen apariencia deben estar presentes (nombre, horas)
+    texto = PdfReader(BytesIO(aplanado)).pages[0].extract_text()
+    assert "Pérez Gómez Ana María" in texto
+    assert "52" in texto

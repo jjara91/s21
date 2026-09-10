@@ -82,7 +82,12 @@ def nombre_archivo(nombre: str, anio_servicio: int) -> str:
 
 
 def _apariencia(widget: DictionaryObject) -> DictionaryObject | None:
-    """Stream de apariencia normal del widget, resolviendo el estado de una casilla."""
+    """Stream de apariencia normal del widget, resolviendo el estado de una casilla.
+
+    Devuelve None si el widget no tiene contenido dibujable: casos típicos incluyen
+    casillas desmarcadas sin apariencia para el estado /Off, o widgets sin /AP.
+    En aplanar(), los widgets con None se omiten silenciosamente, que es lo correcto.
+    """
     apariencias = widget.get("/AP")
     if not apariencias or "/N" not in apariencias.get_object():
         return None
@@ -101,6 +106,9 @@ def aplanar(pdf: bytes) -> bytes:
 
     pypdf no trae aplanado: se estampa la apariencia de cada widget como XObject
     en el contenido de la página y luego se descartan las anotaciones.
+
+    NOTA: Usa las APIs internas de pypdf (_add_object, _root_object) porque no hay
+    alternativa pública. Una actualización de pypdf exige revisar esta función.
     """
     escritor = PdfWriter(clone_from=BytesIO(pdf))
 
@@ -137,7 +145,8 @@ def aplanar(pdf: bytes) -> bytes:
 
         if operaciones:
             extra = DecodedStreamObject()
-            # el "q Q" inicial cierra cualquier estado gráfico abierto en el contenido
+            # El par q Q inicial aísla el estado gráfico de los operadores siguientes.
+            # Si el contenido previo está balanceado (caso normal), es inocuo.
             extra.set_data(("\nq Q\n" + "\n".join(operaciones)).encode())
             referencia = escritor._add_object(extra)
             actual = pagina.raw_get("/Contents")
