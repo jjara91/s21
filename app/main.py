@@ -9,7 +9,7 @@ from app.auth import SinSesion, redirigir_al_login
 from app.config import cargar_config
 from app.db import motor
 from app.web.plantillas import DIRECTORIO
-from app.web.routers import inicio, sesion
+from app.web.routers import grupos, inicio, publicadores, sesion
 
 
 @asynccontextmanager
@@ -41,3 +41,5 @@ def salud() -> dict[str, str]:
 
 app.include_router(sesion.router)
 app.include_router(inicio.router)
+app.include_router(publicadores.router)
+app.include_router(grupos.router)

@@ -87,3 +87,29 @@ def test_listar_ordena_alfabeticamente(sesion):
 def test_obtener_lanza_si_no_existe(sesion):
     with pytest.raises(publicadores.PublicadorNoEncontrado):
         publicadores.obtener(sesion, 999)
+
+
+def test_con_privilegio_filtra_por_nombramiento_vigente_hoy(sesion):
+    from datetime import date
+
+    from app.services import nombramientos
+
+    precursora = publicadores.crear(sesion, "Precursora Una")
+    publicadores.crear(sesion, "Comun Dos")
+    nombramientos.crear(sesion, precursora.id, "precursor_regular", date(2025, 9, 1))
+
+    lista = publicadores.listar(sesion)
+    filtrada = publicadores.con_privilegio(
+        sesion, lista, "precursor_regular", date(2026, 1, 15)
+    )
+
+    assert [p.id for p in filtrada] == [precursora.id]
+
+
+def test_con_privilegio_sin_valor_devuelve_la_lista_entera(sesion):
+    from datetime import date
+
+    publicadores.crear(sesion, "Comun Dos")
+    lista = publicadores.listar(sesion)
+
+    assert publicadores.con_privilegio(sesion, lista, None, date(2026, 1, 15)) == lista

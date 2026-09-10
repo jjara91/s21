@@ -88,3 +88,22 @@ def dar_de_baja(
     sesion: Session, publicador_id: int, fecha: date, motivo: str
 ) -> Publicador:
     return actualizar(sesion, publicador_id, fecha_baja=fecha, motivo_baja=motivo)
+
+
+def con_privilegio(
+    sesion: Session,
+    lista: list[Publicador],
+    privilegio: str | None,
+    hoy: date,
+) -> list[Publicador]:
+    """Filtra la lista dejando a quienes tienen ese nombramiento vigente hoy."""
+    if not privilegio:
+        return lista
+    from app.services import nombramientos
+
+    return [
+        publicador
+        for publicador in lista
+        if privilegio
+        in nombramientos.tipos_en_mes(sesion, publicador.id, hoy.year, hoy.month)
+    ]
