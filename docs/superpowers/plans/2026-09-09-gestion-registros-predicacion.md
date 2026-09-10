@@ -2150,8 +2150,9 @@ def test_dos_cambios_en_el_mismo_mes_se_unen(sesion, mauricio):
 
     sugeridas = nombramientos.notas_sugeridas(sesion, mauricio.id, 2026)
 
+    # cronológico: el nombramiento es del 12 y el cese del 31
     assert sugeridas[5] == (
-        "deja de ser precursor regular · nombrado siervo ministerial"
+        "nombrado siervo ministerial · deja de ser precursor regular"
     )
 
 
@@ -2280,20 +2281,30 @@ def notas_sugeridas(
     sesion: Session, publicador_id: int, anio_servicio: int
 ) -> dict[int, str]:
     """Texto propuesto para el mes en que un privilegio empieza o termina."""
+    # El rango lo calcula esta función, nunca lo recibe: por eso indexar por mes
+    # calendario es seguro, los doce meses de un año de servicio son únicos.
     inicio, fin = rango_anio_servicio(anio_servicio)
-    por_mes: dict[tuple[int, int], list[str]] = {}
+    # (mes) -> [(fecha del hecho, id del nombramiento, texto)]
+    por_mes: dict[int, list[tuple[date, int, str]]] = {}
 
     for nombramiento in listar(sesion, publicador_id):
         etiqueta = ETIQUETAS[nombramiento.tipo]
+        identificador = nombramiento.id or 0
         if inicio <= nombramiento.desde <= fin:
-            clave = (nombramiento.desde.year, nombramiento.desde.month)
-            por_mes.setdefault(clave, []).append(f"nombrado {etiqueta}")
+            por_mes.setdefault(nombramiento.desde.month, []).append(
+                (nombramiento.desde, identificador, f"nombrado {etiqueta}")
+            )
         if nombramiento.hasta is not None and inicio <= nombramiento.hasta <= fin:
-            clave = (nombramiento.hasta.year, nombramiento.hasta.month)
-            por_mes.setdefault(clave, []).append(f"deja de ser {etiqueta}")
+            por_mes.setdefault(nombramiento.hasta.month, []).append(
+                (nombramiento.hasta, identificador, f"deja de ser {etiqueta}")
+            )
 
+    # Se ordena por la fecha del hecho, no por el inicio del registro: en un mes
+    # con un cese y un nombramiento, lo que importa es cuál ocurrió antes. El id
+    # desempata para que el texto impreso sea siempre el mismo.
     return {
-        mes: " · ".join(textos) for (_anio, mes), textos in sorted(por_mes.items())
+        mes: " · ".join(texto for _fecha, _id, texto in sorted(hechos))
+        for mes, hechos in sorted(por_mes.items())
     }
 ```
 
