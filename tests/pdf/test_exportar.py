@@ -136,3 +136,38 @@ def test_casilla_desmarcada_escribe_off_en_pdf(plantilla_sintetica):
     campos_leidos = PdfReader(BytesIO(pdf)).get_fields()
 
     assert campos_leidos[campo_participo_mes_1].get("/V") == campos.DESMARCADA
+
+
+def test_aplanar_deja_el_pdf_sin_campos_de_formulario(plantilla_sintetica):
+    from io import BytesIO
+
+    from pypdf import PdfReader
+
+    editable = exportar.rellenar(plantilla_sintetica.read_bytes(), _tarjeta_completa())
+    aplanado = exportar.aplanar(editable)
+
+    assert PdfReader(BytesIO(aplanado)).get_fields() in (None, {})
+
+
+def test_aplanar_conserva_los_valores_en_el_texto_de_la_pagina(plantilla_sintetica):
+    from io import BytesIO
+
+    from pypdf import PdfReader
+
+    editable = exportar.rellenar(plantilla_sintetica.read_bytes(), _tarjeta_completa())
+    aplanado = exportar.aplanar(editable)
+
+    texto = PdfReader(BytesIO(aplanado)).pages[0].extract_text()
+    for esperado in ("Pérez Gómez Ana María", "12.05.1988", "2026", "52", "82"):
+        assert esperado in texto
+
+
+def test_aplanar_no_altera_el_pdf_de_entrada(plantilla_sintetica):
+    from io import BytesIO
+
+    from pypdf import PdfReader
+
+    editable = exportar.rellenar(plantilla_sintetica.read_bytes(), _tarjeta_completa())
+    exportar.aplanar(editable)
+
+    assert len(PdfReader(BytesIO(editable)).get_fields() or {}) == 75

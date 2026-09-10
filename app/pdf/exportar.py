@@ -5,6 +5,7 @@ from datetime import date
 from io import BytesIO
 
 from pypdf import PdfWriter
+from pypdf.generic import ArrayObject, DecodedStreamObject, DictionaryObject, NameObject
 
 from app.dominio import DatosTarjeta
 from app.pdf import campos
@@ -78,3 +79,80 @@ def rellenar(plantilla: bytes, datos: DatosTarjeta) -> bytes:
 def nombre_archivo(nombre: str, anio_servicio: int) -> str:
     limpio = re.sub(r"[/\\:]", "-", nombre).strip()
     return f"{limpio} - {anio_servicio}.pdf"
+
+
+def _apariencia(widget: DictionaryObject) -> DictionaryObject | None:
+    """Stream de apariencia normal del widget, resolviendo el estado de una casilla."""
+    apariencias = widget.get("/AP")
+    if not apariencias or "/N" not in apariencias.get_object():
+        return None
+    normal = apariencias.get_object()["/N"].get_object()
+    if "/BBox" in normal:
+        return normal
+    estado = widget.get("/AS")
+    if estado is None or estado not in normal:
+        return None
+    candidato = normal[estado].get_object()
+    return candidato if "/BBox" in candidato else None
+
+
+def aplanar(pdf: bytes) -> bytes:
+    """Quema los valores en el contenido de la página y elimina el formulario.
+
+    pypdf no trae aplanado: se estampa la apariencia de cada widget como XObject
+    en el contenido de la página y luego se descartan las anotaciones.
+    """
+    escritor = PdfWriter(clone_from=BytesIO(pdf))
+
+    for pagina in escritor.pages:
+        recursos = pagina["/Resources"].get_object()
+        if "/XObject" not in recursos:
+            recursos[NameObject("/XObject")] = DictionaryObject()
+        xobjects = recursos["/XObject"].get_object()
+
+        operaciones: list[str] = []
+        for indice, anotacion in enumerate(pagina.get("/Annots") or []):
+            widget = anotacion.get_object()
+            apariencia = _apariencia(widget)
+            if apariencia is None:
+                continue
+
+            nombre = NameObject(f"/Plano{indice}")
+            xobjects[nombre] = apariencia.indirect_reference or escritor._add_object(
+                apariencia
+            )
+
+            rect = [float(valor) for valor in widget["/Rect"]]
+            x0, y0 = min(rect[0], rect[2]), min(rect[1], rect[3])
+            x1, y1 = max(rect[0], rect[2]), max(rect[1], rect[3])
+            caja = [float(valor) for valor in apariencia["/BBox"]]
+            ancho = (caja[2] - caja[0]) or 1.0
+            alto = (caja[3] - caja[1]) or 1.0
+            escala_x, escala_y = (x1 - x0) / ancho, (y1 - y0) / alto
+            operaciones.append(
+                f"q {escala_x:.5f} 0 0 {escala_y:.5f} "
+                f"{x0 - caja[0] * escala_x:.3f} {y0 - caja[1] * escala_y:.3f} cm "
+                f"{nombre} Do Q"
+            )
+
+        if operaciones:
+            extra = DecodedStreamObject()
+            # el "q Q" inicial cierra cualquier estado gráfico abierto en el contenido
+            extra.set_data(("\nq Q\n" + "\n".join(operaciones)).encode())
+            referencia = escritor._add_object(extra)
+            actual = pagina.raw_get("/Contents")
+            contenido = actual.get_object()
+            pagina[NameObject("/Contents")] = (
+                ArrayObject(list(contenido) + [referencia])
+                if isinstance(contenido, ArrayObject)
+                else ArrayObject([actual, referencia])
+            )
+
+        pagina[NameObject("/Annots")] = ArrayObject()
+
+    if "/AcroForm" in escritor._root_object:
+        del escritor._root_object[NameObject("/AcroForm")]
+
+    salida = BytesIO()
+    escritor.write(salida)
+    return salida.getvalue()
