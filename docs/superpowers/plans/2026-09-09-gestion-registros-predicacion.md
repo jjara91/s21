@@ -19,7 +19,7 @@
 - `data/` está en `.gitignore`. Ninguna tarjeta con datos reales entra al repositorio, ni como fixture.
 - El formulario oficial S-21 no se distribuye en el repositorio. Las pruebas usan un PDF sintético con los mismos nombres de campo.
 - El puerto se publica solo en loopback: `127.0.0.1:8000:8000`.
-- `app/pdf/campos.py` es el único archivo del proyecto que puede mencionar nombres de campo como `900_1_Text_SanSerif`.
+- Dentro de `app/`, `app/pdf/campos.py` es el único archivo que puede mencionar nombres de campo como `900_1_Text_SanSerif`. Las pruebas de contrato sí escriben esos literales a propósito: son valores testigo frente al formulario real, y derivarlos de `campos.py` las volvería tautológicas.
 - Año de servicio: del 1 de septiembre al 31 de agosto. El año N abarca `[01-09-(N-1), 31-08-N]`.
 - Casillas marcadas: valor `/Yes`. Desmarcadas: `/Off`.
 
