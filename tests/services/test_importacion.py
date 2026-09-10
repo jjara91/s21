@@ -19,6 +19,19 @@ def _pdf(ruta, valores: dict[str, str]) -> bytes:
 
 
 @pytest.fixture
+def tarjeta_mauricio_horas_20(plantilla_sintetica):
+    return _pdf(
+        plantilla_sintetica,
+        {
+            campos.CABECERA_TEXTO["nombre"]: "Mauricio Andrés Rojas Vega",
+            campos.CABECERA_TEXTO["anio_servicio"]: "2025",
+            campos.campo_fila("participo", 9): campos.MARCADA,
+            campos.campo_fila("horas", 9): "20",
+        },
+    )
+
+
+@pytest.fixture
 def tarjeta_mauricio(plantilla_sintetica):
     return _pdf(
         plantilla_sintetica,
@@ -193,6 +206,48 @@ def test_deshacer_devuelve_los_registros_a_su_valor_anterior(sesion, tarjeta_mau
     importacion.deshacer(sesion, "L1")
 
     assert publicadores.obtener(sesion, mauricio.id) is not None
+    assert registros.registros_del_anio(sesion, mauricio.id, 2025)[9].horas == 99
+
+
+def test_deshacer_devuelve_al_publicador_existente_sus_campos_anteriores(
+    sesion, tarjeta_mauricio
+):
+    mauricio = publicadores.crear(
+        sesion,
+        "Mauricio Andrés Rojas Vega",
+        fecha_bautismo=date(2000, 1, 1),
+    )
+    propuesta = importacion.analizar(sesion, "mauricio.pdf", tarjeta_mauricio)
+    importacion.aplicar(sesion, _decision_total(propuesta), lote="L1", ahora=AHORA)
+    assert publicadores.obtener(sesion, mauricio.id).fecha_bautismo == date(2002, 6, 7)
+
+    importacion.deshacer(sesion, "L1")
+
+    assert publicadores.obtener(sesion, mauricio.id).fecha_bautismo == date(2000, 1, 1)
+
+
+def test_deshacer_restaura_el_valor_original_no_el_intermedio(
+    sesion, tarjeta_mauricio, tarjeta_mauricio_horas_20
+):
+    mauricio = publicadores.crear(sesion, "Mauricio Andrés Rojas Vega")
+    registros.guardar_mes(
+        sesion, 2024, 9, [registros.EntradaMes(publicador_id=mauricio.id, horas=99)]
+    )
+
+    primera = importacion.analizar(sesion, "mauricio.pdf", tarjeta_mauricio)
+    importacion.aplicar(
+        sesion, _decision_total(primera, mauricio.id), lote="L1", ahora=AHORA
+    )
+    assert registros.registros_del_anio(sesion, mauricio.id, 2025)[9].horas == 15
+
+    segunda = importacion.analizar(sesion, "mauricio2.pdf", tarjeta_mauricio_horas_20)
+    importacion.aplicar(
+        sesion, _decision_total(segunda, mauricio.id), lote="L1", ahora=AHORA
+    )
+    assert registros.registros_del_anio(sesion, mauricio.id, 2025)[9].horas == 20
+
+    importacion.deshacer(sesion, "L1")
+
     assert registros.registros_del_anio(sesion, mauricio.id, 2025)[9].horas == 99
 
 
