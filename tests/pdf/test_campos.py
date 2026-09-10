@@ -35,3 +35,11 @@ def test_el_sintetico_expone_los_mismos_campos(plantilla_sintetica):
 def test_el_formulario_real_expone_los_mismos_campos(plantilla_real):
     presentes = set(PdfReader(plantilla_real).get_fields() or {})
     assert presentes == set(campos.TODOS_LOS_CAMPOS)
+
+
+def test_convension_de_nombres_valida_clasificacion():
+    # todo campo de casilla del S-21 termina en _CheckBox, ningún campo de texto lo hace
+    # un typo en FILAS_DE_CASILLA mandaría un campo al conjunto equivocado sin romper
+    # el conteo ni el test de no-solapamiento
+    assert all(nombre.endswith("_CheckBox") for nombre in campos.CAMPOS_CASILLA)
+    assert not any(nombre.endswith("_CheckBox") for nombre in campos.CAMPOS_TEXTO)
