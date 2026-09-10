@@ -87,3 +87,78 @@ def test_filtrar_la_lista_por_privilegio(cliente):
 
 def test_publicadores_pide_sesion(cliente_anonimo):
     assert cliente_anonimo.get("/publicadores", follow_redirects=False).status_code == 303
+
+
+def test_editar_un_publicador(cliente):
+    cliente.post("/publicadores", data={"nombre_completo": "Perez Ana"})
+
+    respuesta = cliente.post(
+        "/publicadores/1",
+        data={"nombre_completo": "Perez Ana Maria", "sexo": "M"},
+        follow_redirects=True,
+    )
+
+    assert "Perez Ana Maria" in respuesta.text
+
+
+def test_la_pagina_de_grupos_lista_los_grupos(cliente):
+    cliente.post("/grupos", data={"nombre": "Centro"})
+
+    respuesta = cliente.get("/grupos")
+
+    assert respuesta.status_code == 200
+    assert "Centro" in respuesta.text
+
+
+def test_editar_un_grupo_y_asignar_superintendente(cliente):
+    cliente.post("/publicadores", data={"nombre_completo": "Perez Ana"})
+    cliente.post("/grupos", data={"nombre": "Centro"})
+
+    respuesta = cliente.post(
+        "/grupos/1",
+        data={"nombre": "Sur", "superintendente_id": "1"},
+        follow_redirects=True,
+    )
+
+    assert "Sur" in respuesta.text
+
+
+def test_eliminar_un_grupo(cliente):
+    cliente.post("/grupos", data={"nombre": "Centro"})
+
+    respuesta = cliente.post("/grupos/1/eliminar", follow_redirects=True)
+
+    assert "Centro" not in respuesta.text
+
+
+def test_crear_nombramiento_con_fecha_imposible_devuelve_400(cliente):
+    cliente.post("/publicadores", data={"nombre_completo": "Perez Ana"})
+
+    respuesta = cliente.post(
+        "/publicadores/1/nombramientos",
+        data={"tipo": "precursor_regular", "desde": "31-02-2020"},
+    )
+
+    assert respuesta.status_code == 400
+    assert "no es una fecha válida" in respuesta.text
+
+
+def test_cerrar_nombramiento_con_fecha_anterior_devuelve_400(cliente):
+    cliente.post("/publicadores", data={"nombre_completo": "Perez Ana"})
+    cliente.post(
+        "/publicadores/1/nombramientos",
+        data={"tipo": "anciano", "desde": "2020-01-01"},
+    )
+
+    respuesta = cliente.post(
+        "/publicadores/1/nombramientos/1/cerrar", data={"hasta": "2019-01-01"}
+    )
+
+    assert respuesta.status_code == 400
+
+
+def test_publicador_inexistente_devuelve_404(cliente):
+    respuesta = cliente.get("/publicadores/999")
+
+    assert respuesta.status_code == 404
+    assert "500" not in respuesta.text

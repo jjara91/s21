@@ -9,13 +9,10 @@ from app.db import obtener_sesion
 from app.dominio import TIPOS_NOMBRAMIENTO
 from app.services import grupos, nombramientos
 from app.services import publicadores as servicio
+from app.web.errores import fecha_obligatoria, fecha_opcional
 from app.web.plantillas import plantillas
 
 router = APIRouter(prefix="/publicadores")
-
-
-def _fecha(valor: str | None) -> date | None:
-    return date.fromisoformat(valor) if valor else None
 
 
 def _vacio_a_none(valor: str | None) -> str | None:
@@ -70,8 +67,8 @@ def crear(
         nombre_completo,
         sexo=_vacio_a_none(sexo),
         esperanza=_vacio_a_none(esperanza),
-        fecha_nacimiento=_fecha(fecha_nacimiento),
-        fecha_bautismo=_fecha(fecha_bautismo),
+        fecha_nacimiento=fecha_opcional(fecha_nacimiento, "La fecha de nacimiento"),
+        fecha_bautismo=fecha_opcional(fecha_bautismo, "La fecha de bautismo"),
         grupo_id=grupo_id,
     )
     return RedirectResponse("/publicadores", status_code=303)
@@ -115,8 +112,8 @@ def editar(
         nombre_completo=nombre_completo,
         sexo=_vacio_a_none(sexo),
         esperanza=_vacio_a_none(esperanza),
-        fecha_nacimiento=_fecha(fecha_nacimiento),
-        fecha_bautismo=_fecha(fecha_bautismo),
+        fecha_nacimiento=fecha_opcional(fecha_nacimiento, "La fecha de nacimiento"),
+        fecha_bautismo=fecha_opcional(fecha_bautismo, "La fecha de bautismo"),
         grupo_id=grupo_id,
     )
     return RedirectResponse(f"/publicadores/{publicador_id}", status_code=303)
@@ -130,7 +127,9 @@ def baja(
     sesion: Session = Depends(obtener_sesion),
     _usuario: str = Depends(requerir_sesion),
 ):
-    servicio.dar_de_baja(sesion, publicador_id, date.fromisoformat(fecha_baja), motivo_baja)
+    servicio.dar_de_baja(
+        sesion, publicador_id, fecha_obligatoria(fecha_baja, "La fecha de baja"), motivo_baja
+    )
     return RedirectResponse("/publicadores", status_code=303)
 
 
@@ -142,7 +141,9 @@ def agregar_nombramiento(
     sesion: Session = Depends(obtener_sesion),
     _usuario: str = Depends(requerir_sesion),
 ):
-    nombramientos.crear(sesion, publicador_id, tipo, date.fromisoformat(desde))
+    nombramientos.crear(
+        sesion, publicador_id, tipo, fecha_obligatoria(desde, "La fecha de inicio")
+    )
     return RedirectResponse(f"/publicadores/{publicador_id}", status_code=303)
 
 
@@ -154,5 +155,7 @@ def cerrar_nombramiento(
     sesion: Session = Depends(obtener_sesion),
     _usuario: str = Depends(requerir_sesion),
 ):
-    nombramientos.cerrar(sesion, nombramiento_id, date.fromisoformat(hasta))
+    nombramientos.cerrar(
+        sesion, nombramiento_id, fecha_obligatoria(hasta, "La fecha de término")
+    )
     return RedirectResponse(f"/publicadores/{publicador_id}", status_code=303)

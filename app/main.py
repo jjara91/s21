@@ -3,12 +3,16 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI, Request
 from fastapi.responses import RedirectResponse
 from fastapi.staticfiles import StaticFiles
+from sqlalchemy.exc import IntegrityError
 from starlette.middleware.sessions import SessionMiddleware
 
 from app.auth import SinSesion, redirigir_al_login
 from app.config import cargar_config
 from app.db import motor
-from app.web.plantillas import DIRECTORIO
+from app.services.grupos import GrupoNoEncontrado
+from app.services.publicadores import PublicadorNoEncontrado
+from app.web.errores import DatosInvalidos
+from app.web.plantillas import DIRECTORIO, plantillas
 from app.web.routers import grupos, inicio, publicadores, sesion
 
 
@@ -32,6 +36,45 @@ app.mount("/static", StaticFiles(directory=str(DIRECTORIO.parent / "static")), n
 @app.exception_handler(SinSesion)
 def sin_sesion(_request: Request, _error: SinSesion):
     return redirigir_al_login()
+
+
+def _pagina_error(request: Request, titulo: str, mensaje: str, codigo: int):
+    return plantillas.TemplateResponse(
+        request, "error.html", {"titulo": titulo, "mensaje": mensaje}, status_code=codigo
+    )
+
+
+@app.exception_handler(DatosInvalidos)
+def datos_invalidos(request: Request, error: DatosInvalidos):
+    return _pagina_error(request, "Datos incorrectos", error.mensaje, 400)
+
+
+@app.exception_handler(PublicadorNoEncontrado)
+def publicador_no_encontrado(request: Request, error: PublicadorNoEncontrado):
+    return _pagina_error(
+        request, "No encontrado", "Ese publicador ya no existe.", 404
+    )
+
+
+@app.exception_handler(GrupoNoEncontrado)
+def grupo_no_encontrado(request: Request, error: GrupoNoEncontrado):
+    return _pagina_error(request, "No encontrado", "Ese grupo ya no existe.", 404)
+
+
+@app.exception_handler(ValueError)
+def valor_invalido(request: Request, error: ValueError):
+    # Los servicios lanzan ValueError con el mensaje ya en español.
+    return _pagina_error(request, "Datos incorrectos", str(error), 400)
+
+
+@app.exception_handler(IntegrityError)
+def integridad(request: Request, error: IntegrityError):
+    return _pagina_error(
+        request,
+        "No se pudo guardar",
+        "Algún dato relacionado ya no existe. Recarga la página y vuelve a intentarlo.",
+        400,
+    )
 
 
 @app.get("/salud")
