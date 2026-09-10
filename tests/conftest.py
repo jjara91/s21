@@ -47,7 +47,9 @@ def cliente_anonimo(tmp_path, monkeypatch):
     monkeypatch.setenv("DATA_DIR", str(tmp_path))
     monkeypatch.setenv("AUTH_USER", "prueba")
     monkeypatch.setenv("AUTH_PASS", "secreta")
-    monkeypatch.setenv("SECRET_KEY", "clave-de-prueba")
+    # SECRET_KEY no se fija aquí a propósito: `app.main` lo lee al importarse,
+    # una sola vez por proceso, así que un setenv por test no tendría efecto.
+    # Un test que quiera variar la clave debe recargar el módulo.
 
     from app import db
 
@@ -64,5 +66,9 @@ def cliente_anonimo(tmp_path, monkeypatch):
 
 @pytest.fixture
 def cliente(cliente_anonimo):
-    cliente_anonimo.post("/entrar", data={"usuario": "prueba", "clave": "secreta"})
+    respuesta = cliente_anonimo.post(
+        "/entrar", data={"usuario": "prueba", "clave": "secreta"}, follow_redirects=False
+    )
+    # si el login se rompe, que falle aquí y no en un test aguas abajo
+    assert respuesta.status_code == 303, "la fixture no consiguió iniciar sesión"
     return cliente_anonimo

@@ -19,7 +19,13 @@ async def ciclo_de_vida(_app: FastAPI):
 
 
 app = FastAPI(title="Registros de predicación", lifespan=ciclo_de_vida)
-app.add_middleware(SessionMiddleware, secret_key=cargar_config().secret_key)
+# 12 horas en vez de los 14 días que trae Starlette por defecto: esto guarda
+# datos personales de la congregación y puede correr en un equipo compartido.
+app.add_middleware(
+    SessionMiddleware,
+    secret_key=cargar_config().secret_key,
+    max_age=12 * 60 * 60,
+)
 app.mount("/static", StaticFiles(directory=str(DIRECTORIO.parent / "static")), name="static")
 
 

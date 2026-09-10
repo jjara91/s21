@@ -16,10 +16,12 @@ class SinSesion(Exception):
 
 def credenciales_validas(usuario: str, clave: str) -> bool:
     config = cargar_config()
-    # compare_digest evita filtrar la longitud por tiempo de respuesta
-    return secrets.compare_digest(usuario, config.auth_user) and secrets.compare_digest(
-        clave, config.auth_pass
-    )
+    # Las dos comparaciones se evalúan siempre, sin cortocircuito: un `and`
+    # entre ellas se saltaría la segunda cuando el usuario no coincide, y el
+    # tiempo de respuesta delataría si el nombre de usuario existe.
+    usuario_ok = secrets.compare_digest(usuario, config.auth_user)
+    clave_ok = secrets.compare_digest(clave, config.auth_pass)
+    return usuario_ok and clave_ok
 
 
 def iniciar_sesion(request: Request, usuario: str) -> None:
