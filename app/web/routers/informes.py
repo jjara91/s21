@@ -1,4 +1,7 @@
+import sqlite3
+import tempfile
 from datetime import date
+from pathlib import Path
 
 from fastapi import APIRouter, Depends, Request
 from fastapi.responses import Response
@@ -78,11 +81,36 @@ def ver_alertas(
     )
 
 
+def _copia_consistente(origen: Path) -> bytes:
+    """Copia la base respetando el bloqueo de SQLite.
+
+    Un read_bytes() del archivo vivo no toma ningún bloqueo y puede devolver
+    páginas a medio escribir: la base no está en modo WAL, así que una
+    escritura en curso modifica el archivo principal en el sitio. El respaldo
+    resultante no abriría, o abriría con datos incoherentes, y eso no se
+    descubre hasta el día que hace falta restaurarlo.
+
+    Es el único punto del proyecto que usa sqlite3 directamente en vez de
+    SQLAlchemy: aquí no hay una consulta que hacer, sino copiar el archivo de
+    forma segura, y `Connection.backup` es la API que lo garantiza.
+    """
+    with tempfile.TemporaryDirectory() as carpeta:
+        destino = Path(carpeta) / "respaldo.db"
+        origen_con = sqlite3.connect(origen)
+        destino_con = sqlite3.connect(destino)
+        try:
+            origen_con.backup(destino_con)
+        finally:
+            destino_con.close()
+            origen_con.close()
+        return destino.read_bytes()
+
+
 @router.get("/respaldo")
 def respaldo(_usuario: str = Depends(requerir_sesion)):
     ruta = cargar_config().ruta_db
     return Response(
-        content=ruta.read_bytes(),
+        content=_copia_consistente(ruta),
         media_type="application/octet-stream",
         headers={"content-disposition": 'attachment; filename="s21.db"'},
     )

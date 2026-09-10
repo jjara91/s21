@@ -1,3 +1,6 @@
+import sqlite3
+
+
 def test_el_informe_del_mes_carga(cliente):
     cliente.post("/publicadores", data={"nombre_completo": "Perez Ana"})
     cliente.post(
@@ -30,12 +33,32 @@ def test_alertas_lista_a_los_inactivos(cliente):
     assert "inactivo" in respuesta.text
 
 
-def test_respaldo_descarga_la_base(cliente):
+def test_respaldo_descarga_la_base(cliente, tmp_path):
+    cliente.post("/publicadores", data={"nombre_completo": "Perez Ana"})
+
     respuesta = cliente.get("/respaldo")
 
     assert respuesta.status_code == 200
-    assert respuesta.content[:15] == b"SQLite format 3"
     assert "s21.db" in respuesta.headers["content-disposition"]
+
+    # El respaldo debe abrir como una base SQLite válida y contener los
+    # datos: mirar solo la cabecera no detectaría un archivo con páginas a
+    # medio escribir, que también empieza con "SQLite format 3".
+    copia = tmp_path / "respaldo.db"
+    copia.write_bytes(respuesta.content)
+    conexion = sqlite3.connect(copia)
+    try:
+        nombres = [
+            fila[0]
+            for fila in conexion.execute("SELECT nombre_completo FROM publicador")
+        ]
+    finally:
+        conexion.close()
+    assert "Perez Ana" in nombres
+
+
+def test_respaldo_pide_sesion(cliente_anonimo):
+    assert cliente_anonimo.get("/respaldo", follow_redirects=False).status_code == 303
 
 
 def test_el_informe_pide_sesion(cliente_anonimo):
