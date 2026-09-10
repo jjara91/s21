@@ -13,7 +13,7 @@
 ## Global Constraints
 
 - Python 3.12. Dependencias de runtime: `fastapi`, `uvicorn[standard]`, `sqlmodel`, `jinja2`, `python-multipart`, `itsdangerous`, `pypdf>=5.1`. De desarrollo: `pytest`, `httpx`, `reportlab`.
-- Sin build step de JavaScript. HTMX se sirve como archivo estático local, no desde CDN.
+- Sin build step de JavaScript y sin librerías de terceros en el navegador: las pantallas son formularios HTML normales. No se sirve ningún estático de terceros, ni local ni desde CDN.
 - Interfaz, nombres de rutas y mensajes al usuario en español.
 - La aplicación no hace ninguna llamada de red saliente, ni en runtime ni en las pruebas.
 - `data/` está en `.gitignore`. Ninguna tarjeta con datos reales entra al repositorio, ni como fixture.
@@ -3754,8 +3754,6 @@ def test_la_salud_no_pide_sesion(cliente_anonimo):
 - [ ] **Step 2: Añadir las fixtures web a `tests/conftest.py`**
 
 ```python
-import os
-
 from fastapi.testclient import TestClient
 
 
@@ -4843,12 +4841,17 @@ def test_guardar_el_mes_completo(cliente):
     assert "visita del superintendente" in respuesta.text
 
 
+def _etiqueta_horas(texto: str, publicador_id: int) -> str:
+    """El resto de la etiqueta <input> de horas, desde su atributo name."""
+    return texto.split(f'name="horas_{publicador_id}"')[1].split(">")[0]
+
+
 def test_las_horas_vienen_deshabilitadas_para_un_publicador_comun(cliente):
     _crear_publicador(cliente, "Perez Ana")
 
     respuesta = cliente.get("/grilla", params={"anio": 2026, "mes": 1})
 
-    assert 'name="horas_1" disabled' in respuesta.text.replace('disabled=""', "disabled")
+    assert "disabled" in _etiqueta_horas(respuesta.text, 1)
 
 
 def test_las_horas_se_habilitan_para_un_precursor_regular(cliente):
@@ -4860,7 +4863,7 @@ def test_las_horas_se_habilitan_para_un_precursor_regular(cliente):
 
     respuesta = cliente.get("/grilla", params={"anio": 2026, "mes": 1})
 
-    assert "disabled" not in respuesta.text.split('name="horas_1"')[1].split(">")[0]
+    assert "disabled" not in _etiqueta_horas(respuesta.text, 1)
 
 
 def test_guardar_dos_veces_no_duplica(cliente):
@@ -5444,6 +5447,26 @@ def subir_plantilla(
     return RedirectResponse("/plantilla", status_code=303)
 
 
+# Esta ruta va ANTES que la de la vista: Starlette resuelve por orden de
+# declaración y `{anio_servicio}` casa cualquier cosa sin barra, así que la vista
+# capturaría "2026.pdf" y fallaría al convertirlo a int.
+@router.get("/publicadores/{publicador_id}/tarjeta/{anio_servicio}.pdf")
+def descargar_tarjeta(
+    publicador_id: int,
+    anio_servicio: int,
+    aplanado: bool = False,
+    sesion: Session = Depends(obtener_sesion),
+    _usuario: str = Depends(requerir_sesion),
+):
+    try:
+        nombre, contenido = servicio.pdf_de(
+            sesion, publicador_id, anio_servicio, aplanado=aplanado
+        )
+    except servicio.PlantillaAusente:
+        return RedirectResponse("/plantilla", status_code=303)
+    return _adjunto(nombre, contenido, "application/pdf")
+
+
 @router.get("/publicadores/{publicador_id}/tarjeta/{anio_servicio}")
 def ver_tarjeta(
     publicador_id: int,
@@ -5462,23 +5485,6 @@ def ver_tarjeta(
             "anio_servicio": anio_servicio,
         },
     )
-
-
-@router.get("/publicadores/{publicador_id}/tarjeta/{anio_servicio}.pdf")
-def descargar_tarjeta(
-    publicador_id: int,
-    anio_servicio: int,
-    aplanado: bool = False,
-    sesion: Session = Depends(obtener_sesion),
-    _usuario: str = Depends(requerir_sesion),
-):
-    try:
-        nombre, contenido = servicio.pdf_de(
-            sesion, publicador_id, anio_servicio, aplanado=aplanado
-        )
-    except servicio.PlantillaAusente:
-        return RedirectResponse("/plantilla", status_code=303)
-    return _adjunto(nombre, contenido, "application/pdf")
 
 
 @router.get("/exportar")
