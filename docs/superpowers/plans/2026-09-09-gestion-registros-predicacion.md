@@ -3895,7 +3895,9 @@ def cliente_anonimo(tmp_path, monkeypatch):
     monkeypatch.setenv("DATA_DIR", str(tmp_path))
     monkeypatch.setenv("AUTH_USER", "prueba")
     monkeypatch.setenv("AUTH_PASS", "secreta")
-    monkeypatch.setenv("SECRET_KEY", "clave-de-prueba")
+    # SECRET_KEY no se fija aquí a propósito: `app.main` lo lee al importarse,
+    # una sola vez por proceso, así que un setenv por test no tendría efecto.
+    # Un test que quiera variar la clave debe recargar el módulo.
 
     from app import db
 
@@ -3912,7 +3914,11 @@ def cliente_anonimo(tmp_path, monkeypatch):
 
 @pytest.fixture
 def cliente(cliente_anonimo):
-    cliente_anonimo.post("/entrar", data={"usuario": "prueba", "clave": "secreta"})
+    respuesta = cliente_anonimo.post(
+        "/entrar", data={"usuario": "prueba", "clave": "secreta"}, follow_redirects=False
+    )
+    # si el login se rompe, que falle aquí y no en un test aguas abajo
+    assert respuesta.status_code == 303, "la fixture no consiguió iniciar sesión"
     return cliente_anonimo
 ```
 
@@ -3942,10 +3948,12 @@ class SinSesion(Exception):
 
 def credenciales_validas(usuario: str, clave: str) -> bool:
     config = cargar_config()
-    # compare_digest evita filtrar la longitud por tiempo de respuesta
-    return secrets.compare_digest(usuario, config.auth_user) and secrets.compare_digest(
-        clave, config.auth_pass
-    )
+    # Las dos comparaciones se evalúan siempre, sin cortocircuito: un `and`
+    # entre ellas se saltaría la segunda cuando el usuario no coincide, y el
+    # tiempo de respuesta delataría si el nombre de usuario existe.
+    usuario_ok = secrets.compare_digest(usuario, config.auth_user)
+    clave_ok = secrets.compare_digest(clave, config.auth_pass)
+    return usuario_ok and clave_ok
 
 
 def iniciar_sesion(request: Request, usuario: str) -> None:
@@ -4177,7 +4185,13 @@ async def ciclo_de_vida(_app: FastAPI):
 
 
 app = FastAPI(title="Registros de predicación", lifespan=ciclo_de_vida)
-app.add_middleware(SessionMiddleware, secret_key=cargar_config().secret_key)
+# 12 horas en vez de los 14 días que trae Starlette por defecto: esto guarda
+# datos personales de la congregación y puede correr en un equipo compartido.
+app.add_middleware(
+    SessionMiddleware,
+    secret_key=cargar_config().secret_key,
+    max_age=12 * 60 * 60,
+)
 app.mount("/static", StaticFiles(directory=str(DIRECTORIO.parent / "static")), name="static")
 
 
