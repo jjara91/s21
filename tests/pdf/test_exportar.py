@@ -109,16 +109,30 @@ def test_fecha_ilegible_usa_fallback_crudo(plantilla_sintetica):
 
 
 def test_casilla_desmarcada_escribe_off_en_pdf(plantilla_sintetica):
-    """Verifica que /Off se escribe literalmente para meses sin participación."""
-    from pypdf import PdfReader
+    """Verifica que /Off se escribe y sobrescribe (no depende de la plantilla)."""
+    from pypdf import PdfReader, PdfWriter
     from io import BytesIO
     from app.pdf import campos
 
-    tarjeta = DatosTarjeta.vacia(nombre="Morales Silva Carla", anio_servicio=2025)
-    # No marcamos participación en mes 1 (queda False por defecto)
+    # Crear plantilla sucia: marcar la casilla de participación del mes 1
+    plantilla_bytes = plantilla_sintetica.read_bytes()
+    escritor = PdfWriter(clone_from=BytesIO(plantilla_bytes))
+    campo_participo_mes_1 = campos.campo_fila("participo", 1)
+    escritor.update_page_form_field_values(
+        escritor.pages[0],
+        {campo_participo_mes_1: campos.MARCADA},
+        auto_regenerate=True,
+    )
+    salida = BytesIO()
+    escritor.write(salida)
+    plantilla_sucia = salida.getvalue()
 
-    pdf = exportar.rellenar(plantilla_sintetica.read_bytes(), tarjeta)
+    # Exportar tarjeta con mes 1 sin participación (False por defecto)
+    tarjeta = DatosTarjeta.vacia(nombre="Gómez Flores Laura", anio_servicio=2025)
+    # mes 1 queda con participo=False
+
+    # El código debe sobrescribir MARCADA con DESMARCADA
+    pdf = exportar.rellenar(plantilla_sucia, tarjeta)
     campos_leidos = PdfReader(BytesIO(pdf)).get_fields()
 
-    campo_participo_mes_1 = campos.campo_fila("participo", 1)
     assert campos_leidos[campo_participo_mes_1].get("/V") == campos.DESMARCADA
