@@ -7,11 +7,15 @@ todo lo que modifica para que `deshacer` pueda restaurarlo con exactitud.
 
 import hashlib
 import json
+import shutil
+import uuid
 from dataclasses import dataclass, field
 from datetime import date, datetime
+from pathlib import Path
 
 from sqlmodel import Session, select
 
+from app.config import cargar_config
 from app.dominio import DatosTarjeta, rango_anio_servicio
 from app.models import Importacion, Nombramiento, Publicador, RegistroMensual
 from app.pdf.importar import leer_tarjeta
@@ -354,3 +358,32 @@ def historial(sesion: Session) -> list[tuple[str, datetime, int]]:
         fecha, cantidad = por_lote.get(fila.lote, (fila.fecha, 0))
         por_lote[fila.lote] = (min(fecha, fila.fecha), cantidad + 1)
     return [(lote, fecha, cantidad) for lote, (fecha, cantidad) in por_lote.items()]
+
+
+def _directorio_lotes() -> Path:
+    return cargar_config().data_dir / "subidas"
+
+
+def guardar_lote(archivos: list[tuple[str, bytes]]) -> str:
+    """Deja los PDF subidos en disco y devuelve el identificador del lote."""
+    lote = uuid.uuid4().hex[:12]
+    destino = _directorio_lotes() / lote
+    destino.mkdir(parents=True, exist_ok=True)
+    for indice, (nombre, contenido) in enumerate(archivos):
+        # el índice conserva el orden y evita choques de nombre
+        (destino / f"{indice:03d}_{Path(nombre).name}").write_bytes(contenido)
+    return lote
+
+
+def archivos_del_lote(lote: str) -> list[tuple[str, bytes]]:
+    directorio = _directorio_lotes() / lote
+    if not directorio.exists():
+        return []
+    return [
+        (ruta.name.split("_", 1)[1], ruta.read_bytes())
+        for ruta in sorted(directorio.iterdir())
+    ]
+
+
+def borrar_lote(lote: str) -> None:
+    shutil.rmtree(_directorio_lotes() / lote, ignore_errors=True)

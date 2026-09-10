@@ -1,0 +1,30 @@
+{% extends "base.html" %}
+{% block contenido %}
+<h1>Importar tarjetas</h1>
+
+{% for error in errores %}<p class="error">{{ error }}</p>{% endfor %}
+
+<form method="post" action="/importar" enctype="multipart/form-data">
+  <input type="file" name="archivos" accept="application/pdf" multiple required>
+  <button type="submit">Subir y revisar</button>
+</form>
+
+<h2>Importaciones anteriores</h2>
+{% if historial %}
+<table>
+  <tr><th>Lote</th><th>Fecha</th><th>Archivos</th><th></th></tr>
+  {% for lote, fecha, cantidad in historial %}
+  <tr>
+    <td>{{ lote }}</td><td>{{ fecha.strftime('%d.%m.%Y %H:%M') }}</td><td>{{ cantidad }}</td>
+    <td>
+      <form method="post" action="/importar/{{ lote }}/deshacer">
+        <button type="submit">Deshacer</button>
+      </form>
+    </td>
+  </tr>
+  {% endfor %}
+</table>
+{% else %}
+<p>Todavía no se ha importado nada.</p>
+{% endif %}
+{% endblock %}
