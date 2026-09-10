@@ -3,6 +3,7 @@
 from dataclasses import dataclass
 from datetime import date
 
+from sqlalchemy import and_, or_
 from sqlmodel import Session, select
 
 from app.models import Publicador, RegistroMensual
@@ -38,6 +39,15 @@ def calcular(sesion: Session, hoy: date) -> list[Alerta]:
         consulta = select(RegistroMensual).where(
             RegistroMensual.publicador_id == publicador.id,
             RegistroMensual.participo == True,  # noqa: E712 - SQLModel necesita ==
+            # Acotado a la ventana. Sin esto la consulta arrastra el historial
+            # completo del publicador para mirar solo seis meses, y ese
+            # historial crece cada año que la aplicación esté en uso.
+            or_(
+                *(
+                    and_(RegistroMensual.anio == anio, RegistroMensual.mes == mes)
+                    for anio, mes in periodos
+                )
+            ),
         )
         informados = {
             (registro.anio, registro.mes) for registro in sesion.exec(consulta).all()

@@ -85,6 +85,19 @@ def test_el_mes_en_curso_no_entra_en_la_ventana(sesion):
     assert alertas.calcular(sesion, date(2026, 3, 15)) == []
 
 
+def test_los_registros_fuera_de_la_ventana_no_cuentan(sesion):
+    """Informar mucho antes de la ventana no evita la alerta, y la consulta
+    acotada no debe dejar fuera ningún mes que sí pertenezca a ella."""
+    ana = publicadores.crear(sesion, "Perez Ana")
+    _informar(sesion, ana.id, [(2020, 5), (2021, 8)])  # muy anteriores
+    _informar(sesion, ana.id, alertas.ventana(date(2026, 3, 15))[:2])
+
+    resultado = alertas.calcular(sesion, date(2026, 3, 15))
+
+    assert resultado[0].estado == "irregular"
+    assert len(resultado[0].meses_sin_informar) == 4
+
+
 def test_las_bajas_no_generan_alertas(sesion):
     ana = publicadores.crear(sesion, "Perez Ana")
     publicadores.dar_de_baja(sesion, ana.id, date(2026, 1, 10), "mudado")
