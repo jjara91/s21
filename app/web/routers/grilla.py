@@ -92,20 +92,21 @@ async def guardar(
                 )
 
     if errores:
-        filas_enviadas = [
-            (
-                publicador,
-                _FilaEnviada(
-                    participo=formulario.get(f"participo_{publicador.id}") is not None,
-                    cursos_biblicos=(formulario.get(f"cursos_{publicador.id}") or "").strip(),
-                    precursor_auxiliar=formulario.get(f"auxiliar_{publicador.id}") is not None,
-                    horas=(formulario.get(f"horas_{publicador.id}") or "").strip(),
-                    notas=(formulario.get(f"notas_{publicador.id}") or "").strip(),
-                ),
-                horas_habilitadas,
+        filas_enviadas = []
+        for publicador, _, horas_habilitadas in filas:
+            fila_enviada = _FilaEnviada(
+                participo=formulario.get(f"participo_{publicador.id}") is not None,
+                cursos_biblicos=(formulario.get(f"cursos_{publicador.id}") or "").strip(),
+                precursor_auxiliar=formulario.get(f"auxiliar_{publicador.id}") is not None,
+                horas=(formulario.get(f"horas_{publicador.id}") or "").strip(),
+                notas=(formulario.get(f"notas_{publicador.id}") or "").strip(),
             )
-            for publicador, _, horas_habilitadas in filas
-        ]
+            # En la respuesta de error las horas se habilitan también por la casilla
+            # de auxiliar recién marcada: si solo se mirara la base, quien marque
+            # auxiliar y escriba mal las horas recibiría el campo deshabilitado y no
+            # podría corregir el error que se le está señalando.
+            habilitadas = horas_habilitadas or fila_enviada.precursor_auxiliar
+            filas_enviadas.append((publicador, fila_enviada, habilitadas))
         return plantillas.TemplateResponse(
             request,
             "grilla.html",

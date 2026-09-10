@@ -156,3 +156,18 @@ def test_publicador_no_numerico_da_error_en_espanol(cliente):
     assert respuesta.status_code == 400
     assert "identificador de publicador inválido" in respuesta.text
     assert "invalid literal" not in respuesta.text
+
+
+def test_las_horas_se_habilitan_al_marcar_auxiliar_aunque_haya_error_en_esa_misma_fila(cliente):
+    _crear_publicador(cliente, "Comun Uno")
+
+    respuesta = cliente.post(
+        "/grilla",
+        data={
+            "anio": "2026", "mes": "1", "publicadores": ["1"],
+            "auxiliar_1": "1", "horas_1": "abc",
+        },
+    )
+
+    assert respuesta.status_code == 400
+    assert "disabled" not in _etiqueta_horas(respuesta.text, 1)
