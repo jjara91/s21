@@ -17,3 +17,23 @@ def plantilla_real() -> Path:
     if not ruta.exists():
         pytest.skip("no hay plantilla real en data/; se corre solo donde exista")
     return ruta
+
+
+from collections.abc import Iterator
+
+from sqlmodel import Session
+
+from app import db
+
+
+@pytest.fixture
+def engine(tmp_path):
+    motor = db.crear_engine(tmp_path / "s21.db")
+    db.aplicar_migraciones(motor)
+    return motor
+
+
+@pytest.fixture
+def sesion(engine) -> Iterator[Session]:
+    with Session(engine) as abierta:
+        yield abierta
