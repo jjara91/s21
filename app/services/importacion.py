@@ -1,0 +1,315 @@
+"""Comparación de una tarjeta contra la base, aplicación y deshacer.
+
+`analizar` no escribe nada: devuelve una propuesta que la pantalla de revisión
+muestra al usuario. Solo `aplicar` toca la base, y guarda el estado anterior de
+todo lo que modifica para que `deshacer` pueda restaurarlo con exactitud.
+"""
+
+import hashlib
+import json
+from dataclasses import dataclass, field
+from datetime import date, datetime
+
+from sqlmodel import Session, select
+
+from app.dominio import DatosTarjeta, rango_anio_servicio
+from app.models import Importacion, Nombramiento, Publicador, RegistroMensual
+from app.pdf.importar import leer_tarjeta
+from app.services import nombramientos, publicadores, registros
+
+CAMPOS_CABECERA = (
+    ("fecha_nacimiento", "Fecha de nacimiento"),
+    ("fecha_bautismo", "Fecha de bautismo"),
+    ("sexo", "Sexo"),
+    ("esperanza", "Esperanza"),
+)
+
+
+@dataclass
+class Diferencia:
+    campo: str
+    etiqueta: str
+    valor_actual: object
+    valor_tarjeta: object
+
+
+@dataclass(frozen=True)
+class NombramientoPropuesto:
+    tipo: str
+    desde: date
+
+
+@dataclass
+class Propuesta:
+    archivo: str
+    sha256: str
+    datos: DatosTarjeta
+    publicador_id: int | None
+    diferencias: list[Diferencia] = field(default_factory=list)
+    nombramientos: list[NombramientoPropuesto] = field(default_factory=list)
+    meses_en_conflicto: list[int] = field(default_factory=list)
+    ya_importado: datetime | None = None
+
+
+@dataclass
+class Decision:
+    propuesta: Propuesta
+    publicador_id: int | None
+    aceptar_campos: set[str]
+    aceptar_nombramientos: list[NombramientoPropuesto]
+    aceptar_meses: set[int]
+
+
+def _anio_calendario(anio_servicio: int, mes: int) -> int:
+    return anio_servicio - 1 if mes >= 9 else anio_servicio
+
+
+def analizar(sesion: Session, archivo: str, contenido: bytes) -> Propuesta:
+    datos = leer_tarjeta(contenido)
+    sha = hashlib.sha256(contenido).hexdigest()
+
+    previa = sesion.exec(
+        select(Importacion)
+        .where(Importacion.sha256 == sha, Importacion.deshecho == False)  # noqa: E712
+        .order_by(Importacion.fecha.desc())
+    ).first()
+
+    existente = publicadores.buscar_por_nombre(sesion, datos.nombre) if datos.nombre else None
+    propuesta = Propuesta(
+        archivo=archivo,
+        sha256=sha,
+        datos=datos,
+        publicador_id=existente.id if existente else None,
+        ya_importado=previa.fecha if previa else None,
+    )
+
+    for campo, etiqueta in CAMPOS_CABECERA:
+        actual = getattr(existente, campo) if existente is not None else None
+        nuevo = getattr(datos, campo)
+        if nuevo is not None and nuevo != actual:
+            propuesta.diferencias.append(Diferencia(campo, etiqueta, actual, nuevo))
+
+    if datos.anio_servicio is not None:
+        inicio, fin = rango_anio_servicio(datos.anio_servicio)
+        vigentes = (
+            nombramientos.tipos_en_anio(sesion, existente.id, datos.anio_servicio)
+            if existente
+            else set()
+        )
+        propuesta.nombramientos = [
+            NombramientoPropuesto(tipo, inicio)
+            for tipo in sorted(datos.nombramientos - vigentes)
+        ]
+
+        if existente is not None:
+            guardados = registros.registros_del_anio(
+                sesion, existente.id, datos.anio_servicio
+            )
+            for fila in datos.meses:
+                previo = guardados.get(fila.mes)
+                if previo is None:
+                    continue
+                distinto = (
+                    previo.participo != fila.participo
+                    or previo.cursos_biblicos != fila.cursos_biblicos
+                    or previo.precursor_auxiliar != fila.precursor_auxiliar
+                    or previo.horas != fila.horas
+                    or (previo.notas or "") != (fila.notas or "")
+                )
+                if distinto:
+                    propuesta.meses_en_conflicto.append(fila.mes)
+
+    return propuesta
+
+
+def _snapshot_publicador(publicador: Publicador) -> dict:
+    return {
+        "nombre_completo": publicador.nombre_completo,
+        "fecha_nacimiento": publicador.fecha_nacimiento.isoformat()
+        if publicador.fecha_nacimiento
+        else None,
+        "fecha_bautismo": publicador.fecha_bautismo.isoformat()
+        if publicador.fecha_bautismo
+        else None,
+        "sexo": publicador.sexo,
+        "esperanza": publicador.esperanza,
+    }
+
+
+def _snapshot_registro(registro: RegistroMensual | None) -> dict | None:
+    if registro is None:
+        return None
+    return {
+        "participo": registro.participo,
+        "cursos_biblicos": registro.cursos_biblicos,
+        "precursor_auxiliar": registro.precursor_auxiliar,
+        "horas": registro.horas,
+        "notas": registro.notas,
+    }
+
+
+def aplicar(
+    sesion: Session, decision: Decision, lote: str, ahora: datetime
+) -> Importacion:
+    datos = decision.propuesta.datos
+    anio_servicio = datos.anio_servicio
+
+    if decision.publicador_id is None:
+        publicador = publicadores.crear(sesion, datos.nombre)
+        accion = "creado"
+        previo_publicador = None
+    else:
+        publicador = publicadores.obtener(sesion, decision.publicador_id)
+        accion = "actualizado"
+        previo_publicador = _snapshot_publicador(publicador)
+
+    cambios = {
+        campo: getattr(datos, campo)
+        for campo, _etiqueta in CAMPOS_CABECERA
+        if campo in decision.aceptar_campos
+    }
+    if cambios:
+        publicador = publicadores.actualizar(sesion, publicador.id, **cambios)
+
+    nombramientos_creados = []
+    for propuesto in decision.aceptar_nombramientos:
+        creado = nombramientos.crear(
+            sesion, publicador.id, propuesto.tipo, propuesto.desde
+        )
+        nombramientos_creados.append(creado.id)
+
+    registros_tocados = []
+    if anio_servicio is not None:
+        for fila in datos.meses:
+            if fila.mes not in decision.aceptar_meses:
+                continue
+            anio = _anio_calendario(anio_servicio, fila.mes)
+            actual = sesion.exec(
+                select(RegistroMensual).where(
+                    RegistroMensual.publicador_id == publicador.id,
+                    RegistroMensual.anio == anio,
+                    RegistroMensual.mes == fila.mes,
+                )
+            ).first()
+            registros_tocados.append(
+                {"anio": anio, "mes": fila.mes, "previo": _snapshot_registro(actual)}
+            )
+            registros.guardar_mes(
+                sesion,
+                anio,
+                fila.mes,
+                [
+                    registros.EntradaMes(
+                        publicador_id=publicador.id,
+                        participo=fila.participo,
+                        cursos_biblicos=fila.cursos_biblicos,
+                        precursor_auxiliar=fila.precursor_auxiliar,
+                        horas=fila.horas,
+                        notas=fila.notas,
+                    )
+                ],
+            )
+
+    registro = Importacion(
+        archivo=decision.propuesta.archivo,
+        sha256=decision.propuesta.sha256,
+        fecha=ahora,
+        lote=lote,
+        publicador_id=publicador.id,
+        anio_servicio=anio_servicio,
+        accion=accion,
+        estado_previo=json.dumps(
+            {
+                "publicador_creado": previo_publicador is None,
+                "publicador": previo_publicador,
+                "nombramientos_creados": nombramientos_creados,
+                "registros": registros_tocados,
+            }
+        ),
+    )
+    sesion.add(registro)
+    sesion.commit()
+    sesion.refresh(registro)
+    return registro
+
+
+def _restaurar(sesion: Session, registro: Importacion) -> None:
+    estado = json.loads(registro.estado_previo or "{}")
+
+    for nombramiento_id in estado.get("nombramientos_creados", []):
+        nombramiento = sesion.get(Nombramiento, nombramiento_id)
+        if nombramiento is not None:
+            sesion.delete(nombramiento)
+
+    for tocado in estado.get("registros", []):
+        fila = sesion.exec(
+            select(RegistroMensual).where(
+                RegistroMensual.publicador_id == registro.publicador_id,
+                RegistroMensual.anio == tocado["anio"],
+                RegistroMensual.mes == tocado["mes"],
+            )
+        ).first()
+        if fila is None:
+            continue
+        if tocado["previo"] is None:
+            sesion.delete(fila)
+            continue
+        for nombre, valor in tocado["previo"].items():
+            setattr(fila, nombre, valor)
+        sesion.add(fila)
+
+    publicador = (
+        sesion.get(Publicador, registro.publicador_id) if registro.publicador_id else None
+    )
+    if publicador is None:
+        return
+    if estado.get("publicador_creado"):
+        registro.publicador_id = None
+        sesion.add(registro)
+        sesion.flush()
+        sesion.delete(publicador)
+    elif estado.get("publicador"):
+        previo = estado["publicador"]
+        publicadores.actualizar(
+            sesion,
+            publicador.id,
+            nombre_completo=previo["nombre_completo"],
+            fecha_nacimiento=date.fromisoformat(previo["fecha_nacimiento"])
+            if previo["fecha_nacimiento"]
+            else None,
+            fecha_bautismo=date.fromisoformat(previo["fecha_bautismo"])
+            if previo["fecha_bautismo"]
+            else None,
+            sexo=previo["sexo"],
+            esperanza=previo["esperanza"],
+        )
+
+
+def deshacer(sesion: Session, lote: str) -> int:
+    pendientes = sesion.exec(
+        select(Importacion).where(
+            Importacion.lote == lote,
+            Importacion.deshecho == False,  # noqa: E712
+        )
+    ).all()
+
+    for registro in pendientes:
+        _restaurar(sesion, registro)
+        registro.deshecho = True
+        sesion.add(registro)
+    sesion.commit()
+    return len(pendientes)
+
+
+def historial(sesion: Session) -> list[tuple[str, datetime, int]]:
+    """(lote, fecha, archivos) de las importaciones no deshechas, la más nueva primero."""
+    filas = sesion.exec(
+        select(Importacion)
+        .where(Importacion.deshecho == False)  # noqa: E712
+        .order_by(Importacion.fecha.desc())
+    ).all()
+    por_lote: dict[str, tuple[datetime, int]] = {}
+    for fila in filas:
+        fecha, cantidad = por_lote.get(fila.lote, (fila.fecha, 0))
+        por_lote[fila.lote] = (min(fecha, fila.fecha), cantidad + 1)
+    return [(lote, fecha, cantidad) for lote, (fecha, cantidad) in por_lote.items()]
