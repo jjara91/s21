@@ -804,10 +804,10 @@ def _tarjeta(ruta, valores: dict[str, str]) -> bytes:
 @pytest.mark.parametrize(
     "texto,esperado",
     [
-        ("14.03.1985", date(1991, 7, 30)),
-        ("30/07/1991", date(1991, 7, 30)),
-        ("1991-07-30", date(1991, 7, 30)),
-        ("  07.06.2002 ", date(2003, 11, 29)),
+        ("14.03.1985", date(1985, 3, 14)),
+        ("14/03/1985", date(1985, 3, 14)),
+        ("1985-03-14", date(1985, 3, 14)),
+        ("  07.06.2002 ", date(2002, 6, 7)),
     ],
 )
 def test_parsear_fecha_acepta_los_tres_formatos(texto, esperado):
@@ -820,7 +820,7 @@ def test_parsear_fecha_vacia_devuelve_none_sin_texto_crudo(texto):
 
 
 def test_parsear_fecha_ilegible_conserva_el_texto_crudo():
-    assert importar.parsear_fecha("julio de 1991") == (None, "julio de 1991")
+    assert importar.parsear_fecha("marzo de 1985") == (None, "marzo de 1985")
 
 
 def test_lee_la_cabecera(plantilla_sintetica):
@@ -840,8 +840,8 @@ def test_lee_la_cabecera(plantilla_sintetica):
     tarjeta = importar.leer_tarjeta(contenido)
 
     assert tarjeta.nombre == "Mauricio Andrés Rojas Vega"
-    assert tarjeta.fecha_nacimiento == date(1991, 7, 30)
-    assert tarjeta.fecha_bautismo == date(2003, 11, 29)
+    assert tarjeta.fecha_nacimiento == date(1985, 3, 14)
+    assert tarjeta.fecha_bautismo == date(2002, 6, 7)
     assert tarjeta.anio_servicio == 2025
     assert tarjeta.sexo == "H"
     assert tarjeta.esperanza == "otras_ovejas"
@@ -1467,7 +1467,7 @@ def test_se_puede_guardar_y_leer_un_publicador_con_registros(tmp_path):
         publicador = models.Publicador(
             nombre_completo="Rojas Vega Mauricio",
             nombre_normalizado="rojas vega mauricio",
-            fecha_bautismo=date(2003, 11, 29),
+            fecha_bautismo=date(2002, 6, 7),
             sexo="H",
             esperanza="otras_ovejas",
             grupo_id=grupo.id,
@@ -3185,7 +3185,7 @@ def test_diferencias_solo_lista_los_campos_que_cambian(sesion, tarjeta_mauricio)
         sesion,
         "Mauricio Andrés Rojas Vega",
         sexo="H",
-        fecha_bautismo=date(2003, 11, 29),
+        fecha_bautismo=date(2002, 6, 7),
     )
 
     propuesta = importacion.analizar(sesion, "mauricio.pdf", tarjeta_mauricio)
@@ -3242,7 +3242,7 @@ def test_aplicar_crea_publicador_nombramientos_y_registros(sesion, tarjeta_mauri
 
     javier = publicadores.buscar_por_nombre(sesion, "Mauricio Andrés Rojas Vega")
     assert javier is not None
-    assert javier.fecha_bautismo == date(2003, 11, 29)
+    assert javier.fecha_bautismo == date(2002, 6, 7)
     assert nombramientos.tipos_en_anio(sesion, javier.id, 2025) == {"siervo_ministerial"}
     del_anio = registros.registros_del_anio(sesion, javier.id, 2025)
     assert del_anio[9].horas == 15
@@ -3263,7 +3263,7 @@ def test_aplicar_respeta_los_campos_no_aceptados(sesion, tarjeta_mauricio):
     importacion.aplicar(sesion, decision, lote="L1", ahora=AHORA)
 
     actualizado = publicadores.obtener(sesion, javier.id)
-    assert actualizado.fecha_bautismo == date(2003, 11, 29)
+    assert actualizado.fecha_bautismo == date(2002, 6, 7)
     assert actualizado.fecha_nacimiento is None
 
 
