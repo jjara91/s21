@@ -112,6 +112,12 @@ def test_aplicar_notas_sugeridas_llena_solo_las_notas_vacias(sesion):
     nombramientos.crear(sesion, ana.id, "siervo_ministerial", date(2026, 3, 1))
     registros.guardar_mes(
         sesion,
+        2025,
+        10,
+        [registros.EntradaMes(publicador_id=ana.id, participo=True)],
+    )
+    registros.guardar_mes(
+        sesion,
         2026,
         3,
         [registros.EntradaMes(publicador_id=ana.id, notas="ya escrito a mano")],
@@ -128,8 +134,46 @@ def test_aplicar_notas_sugeridas_llena_solo_las_notas_vacias(sesion):
 def test_aplicar_notas_sugeridas_es_idempotente(sesion):
     ana = _ana(sesion)
     nombramientos.crear(sesion, ana.id, "precursor_regular", date(2025, 10, 5))
+    registros.guardar_mes(
+        sesion,
+        2025,
+        10,
+        [registros.EntradaMes(publicador_id=ana.id, participo=True)],
+    )
 
     registros.aplicar_notas_sugeridas(sesion, ana.id, 2026)
     segunda = registros.aplicar_notas_sugeridas(sesion, ana.id, 2026)
 
     assert segunda == 0
+
+
+def test_aplicar_notas_sugeridas_no_inventa_meses_sin_cargar(sesion):
+    """Un mes sin fila debe seguir sin fila: las alertas distinguen
+    "sin cargar" de "cargado y no informó", y fabricar la fila borraría
+    esa diferencia."""
+    ana = _ana(sesion)
+    nombramientos.crear(sesion, ana.id, "precursor_regular", date(2025, 10, 5))
+
+    escritas = registros.aplicar_notas_sugeridas(sesion, ana.id, 2026)
+
+    assert escritas == 0
+    assert registros.registros_del_anio(sesion, ana.id, 2026) == {}
+
+
+def test_guardar_mes_sin_notas_borra_la_nota_existente(sesion):
+    """Contrato deliberado: guardar_mes sobrescribe la fila entera, notas
+    incluidas. Quien llama debe reenviar la nota actual si no quiere perderla."""
+    ana = _ana(sesion)
+    registros.guardar_mes(
+        sesion,
+        2025,
+        9,
+        [registros.EntradaMes(publicador_id=ana.id, notas="una nota")],
+    )
+
+    registros.guardar_mes(
+        sesion, 2025, 9, [registros.EntradaMes(publicador_id=ana.id)]
+    )
+
+    del_anio = registros.registros_del_anio(sesion, ana.id, 2026)
+    assert del_anio[9].notas is None

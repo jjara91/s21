@@ -33,7 +33,13 @@ def _registro(
 def guardar_mes(
     sesion: Session, anio: int, mes: int, entradas: list[EntradaMes]
 ) -> int:
-    """Crea o actualiza la fila de cada publicador para ese mes calendario."""
+    """Crea o actualiza la fila de cada publicador para ese mes calendario.
+
+    Sobrescribe la fila entera, `notas` incluidas. Quien llame debe reenviar el
+    valor actual de cada campo que no quiera perder: guardar una `EntradaMes`
+    con `notas=None` borra la nota que hubiera, sea escrita a mano o sugerida
+    por un cambio de privilegio.
+    """
     for entrada in entradas:
         fila = _registro(sesion, entrada.publicador_id, anio, mes) or RegistroMensual(
             publicador_id=entrada.publicador_id, anio=anio, mes=mes
@@ -119,9 +125,14 @@ def aplicar_notas_sugeridas(
         propuesta = sugeridas.get(mes)
         if not propuesta:
             continue
-        fila = _registro(sesion, publicador_id, anio, mes) or RegistroMensual(
-            publicador_id=publicador_id, anio=anio, mes=mes
-        )
+        fila = _registro(sesion, publicador_id, anio, mes)
+        # Solo se anota sobre un mes ya cargado. Crear la fila aquí la dejaría
+        # con participo=False, indistinguible de "cargado y no informó", y las
+        # alertas se apoyan en esa diferencia. No se pierde nada: esta función
+        # corre al ver y al exportar la tarjeta, así que la nota aparecerá sola
+        # en cuanto el mes se cargue.
+        if fila is None:
+            continue
         if (fila.notas or "").strip():
             continue
         fila.notas = propuesta
