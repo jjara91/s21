@@ -2,6 +2,13 @@
 {% block contenido %}
 <h1>{{ mes | mes_nombre }} de {{ anio }}</h1>
 
+{% if errores %}
+<div class="error">
+  <p>No se guardó nada. Corrige lo siguiente y vuelve a guardar:</p>
+  <ul>{% for e in errores %}<li>{{ e }}</li>{% endfor %}</ul>
+</div>
+{% endif %}
+
 <form method="get" action="/grilla">
   <label>Mes
     <select name="mes">

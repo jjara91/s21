@@ -1,3 +1,4 @@
+import logging
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, Request
@@ -63,7 +64,12 @@ def grupo_no_encontrado(request: Request, error: GrupoNoEncontrado):
 
 @app.exception_handler(ValueError)
 def valor_invalido(request: Request, error: ValueError):
-    # Los servicios lanzan ValueError con el mensaje ya en español.
+    # Los servicios lanzan ValueError con el mensaje ya redactado en español.
+    # Un ValueError de otra procedencia (un int() sobre basura, un bug) llegaría
+    # aquí con texto en inglés y se mostraría tal cual, así que se registra
+    # siempre: si no, un fallo de programación se disfraza de dato mal escrito
+    # y desaparece sin dejar rastro.
+    logging.getLogger("s21").exception("ValueError sin capturar: %s", error)
     return _pagina_error(request, "Datos incorrectos", str(error), 400)
 
 
