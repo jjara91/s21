@@ -103,6 +103,8 @@ def revisar(
             "publicadores": servicio_publicadores.listar(sesion),
             "etiquetas": nombramientos.ETIQUETAS,
             "errores": [],
+            "anios_escritos": {},
+            "aplicados": set(),
         },
     )
 
@@ -123,6 +125,14 @@ async def aplicar(
     ahora = datetime.now()
 
     errores = []
+    # Un lote trae varios archivos y cada uno se aplica (commitea) por su
+    # cuenta: si el archivo 2 falla por falta de año, el 1 ya quedó guardado
+    # de verdad. Sin lo que sigue, el re-render de abajo volvería a analizar
+    # el archivo 1 sin el año que el usuario escribió, y se mostraría otra
+    # vez como "sin año legible" con los meses sin marcar -como si no se
+    # hubiera guardado nada-, cuando en realidad ya se guardó.
+    anios_escritos: dict[int, str] = {}
+    aplicados_en_esta_pasada: set[int] = set()
 
     for indice, (nombre, contenido) in enumerate(archivos):
         destino = formulario.get(f"destino_{indice}", "omitir")
@@ -135,6 +145,8 @@ async def aplicar(
         # avisa y se salta, en vez de crear el publicador e ignorar en
         # silencio los doce meses (que es lo que hacía antes).
         anio_crudo = (formulario.get(f"anio_{indice}") or "").strip()
+        if anio_crudo:
+            anios_escritos[indice] = anio_crudo
         anio_manual = None
         if anio_crudo:
             try:
@@ -188,24 +200,43 @@ async def aplicar(
             },
         )
         importacion.aplicar(sesion, decision, lote=lote, ahora=ahora)
+        aplicados_en_esta_pasada.add(indice)
 
     if errores:
         # El lote no se borra: algún archivo se saltó por falta de año y sus
         # datos siguen solo aquí. Borrarlo dejaría al usuario sin forma de
         # completarlo salvo resubir el mismo PDF, que el sha256 marcaría como
         # "ya importado" sin que en realidad se hubiera importado nada de él.
+        #
+        # El re-análisis reusa el año que cada archivo trajo escrito a mano
+        # (si lo trajo): sin esto, un archivo que sí se aplicó en esta misma
+        # pasada volvería a mostrarse como "sin año legible" y con los meses
+        # sin marcar, como si no se hubiera guardado nada.
+        propuestas_error = []
+        for indice, (nombre, contenido) in enumerate(archivos):
+            anio_manual = None
+            crudo = anios_escritos.get(indice)
+            if crudo:
+                try:
+                    anio_manual = anio_valido(int(crudo))
+                except (ValueError, DatosInvalidos):
+                    anio_manual = None
+            propuestas_error.append(
+                importacion.analizar(
+                    sesion, nombre, contenido, anio_servicio_manual=anio_manual
+                )
+            )
         return plantillas.TemplateResponse(
             request,
             "importar_revision.html",
             {
                 "lote": lote,
-                "propuestas": [
-                    importacion.analizar(sesion, nombre, contenido)
-                    for nombre, contenido in archivos
-                ],
+                "propuestas": propuestas_error,
                 "publicadores": servicio_publicadores.listar(sesion),
                 "etiquetas": nombramientos.ETIQUETAS,
                 "errores": errores,
+                "anios_escritos": anios_escritos,
+                "aplicados": aplicados_en_esta_pasada,
             },
             status_code=400,
         )

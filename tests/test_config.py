@@ -1,3 +1,5 @@
+import stat
+
 import pytest
 from fastapi.testclient import TestClient
 
@@ -13,6 +15,32 @@ def test_secret_key_se_genera_y_se_reutiliza(tmp_path, monkeypatch):
 
     assert primera == segunda
     assert (tmp_path / "secret_key").exists()
+
+
+def test_secret_key_se_crea_con_permisos_restrictivos(tmp_path, monkeypatch):
+    """Es la clave que firma las sesiones de un sistema con datos personales:
+    no debe quedar legible para cualquier otra cuenta del sistema."""
+    monkeypatch.setenv("DATA_DIR", str(tmp_path))
+    monkeypatch.delenv("SECRET_KEY", raising=False)
+
+    config.cargar_config()
+
+    permisos = stat.S_IMODE((tmp_path / "secret_key").stat().st_mode)
+    assert permisos == 0o600
+
+
+def test_secret_key_con_permisos_abiertos_se_corrige_al_leerla(tmp_path, monkeypatch):
+    monkeypatch.setenv("DATA_DIR", str(tmp_path))
+    monkeypatch.delenv("SECRET_KEY", raising=False)
+
+    ruta = tmp_path / "secret_key"
+    ruta.write_text("clave-existente", encoding="utf-8")
+    ruta.chmod(0o644)  # como si se hubiera creado antes de este fix
+
+    config.cargar_config()
+
+    permisos = stat.S_IMODE(ruta.stat().st_mode)
+    assert permisos == 0o600
 
 
 def test_secret_key_de_ejemplo_se_reemplaza_por_una_generada(tmp_path, monkeypatch):

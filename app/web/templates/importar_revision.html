@@ -15,6 +15,12 @@
   <h2>{{ propuesta.archivo }} — {{ propuesta.datos.nombre }}
       (año {{ propuesta.datos.anio_servicio or 'sin año' }})</h2>
 
+  {% if i in aplicados %}
+  <p><strong>Este archivo ya se guardó al confirmar este mismo formulario.</strong>
+    Los demás mensajes de esta página son de otros archivos del lote; este
+    no hace falta volver a enviarlo.</p>
+  {% endif %}
+
   {% if propuesta.ya_importado %}
   <p class="error">Este archivo ya se importó el
     {{ propuesta.ya_importado.strftime('%d.%m.%Y %H:%M') }}.</p>
@@ -28,7 +34,8 @@
     {% endif %}.
     Escríbelo para poder importar los meses:
     <label>Año de servicio
-      <input type="number" name="anio_{{ i }}" placeholder="p. ej. 2026">
+      <input type="number" name="anio_{{ i }}" placeholder="p. ej. 2026"
+             value="{{ anios_escritos.get(i, '') }}">
     </label>
     Si lo dejas en blanco, este archivo no se importará.
   </p>

@@ -23,6 +23,13 @@ from app.models import Importacion, Nombramiento, Publicador, RegistroMensual
 from app.pdf.importar import leer_tarjeta
 from app.services import nombramientos, publicadores, registros
 
+# El nombre real del archivo subido (típicamente el nombre de la persona) es
+# útil en la pantalla de revisión, antes de guardar nada. Pero `Importacion`
+# es un registro permanente -el deshacer no caduca- y ese nombre no se
+# vuelve a mostrar en ninguna pantalla después de aplicar: no hay razón para
+# conservarlo indefinidamente. Se guarda este valor neutro en su lugar.
+ARCHIVO_SIN_NOMBRE = "tarjeta.pdf"
+
 CAMPOS_CABECERA = (
     ("fecha_nacimiento", "Fecha de nacimiento"),
     ("fecha_bautismo", "Fecha de bautismo"),
@@ -220,7 +227,7 @@ def aplicar(
         sesion, publicador.id, datos, anio_servicio, decision.aceptar_meses
     )
     registro = Importacion(
-        archivo=decision.propuesta.archivo,
+        archivo=ARCHIVO_SIN_NOMBRE,
         sha256=decision.propuesta.sha256,
         fecha=ahora,
         lote=lote,
@@ -288,6 +295,31 @@ def aplicar(
     return registro
 
 
+def _limpiar_snapshot_publicador_en_otras_filas(
+    sesion: Session, publicador_id: int, excluir_id: int
+) -> None:
+    """Cuando un publicador se borra, el snapshot de sus campos (nombre,
+    fechas, sexo, esperanza) que quedó guardado en el `estado_previo` de
+    OTRAS importaciones -las que lo habían actualizado, no creado- deja de
+    servir para nada: ya no existe a qué publicador restaurarlo. Se limpia
+    para no dejar datos personales sin ningún propósito. El resto de ese
+    `estado_previo` (registros, nombramientos_creados) no se toca.
+    """
+    otras = sesion.exec(
+        select(Importacion).where(
+            Importacion.publicador_id == publicador_id,
+            Importacion.id != excluir_id,
+        )
+    ).all()
+    for otra in otras:
+        estado_otra = json.loads(otra.estado_previo or "{}")
+        if estado_otra.get("publicador") is None:
+            continue
+        estado_otra["publicador"] = None
+        otra.estado_previo = json.dumps(estado_otra)
+        sesion.add(otra)
+
+
 def _restaurar(sesion: Session, registro: Importacion) -> None:
     estado = json.loads(registro.estado_previo or "{}")
 
@@ -319,6 +351,7 @@ def _restaurar(sesion: Session, registro: Importacion) -> None:
     if publicador is None:
         return
     if estado.get("publicador_creado"):
+        _limpiar_snapshot_publicador_en_otras_filas(sesion, publicador.id, registro.id)
         registro.publicador_id = None
         sesion.add(registro)
         sesion.flush()
@@ -356,6 +389,15 @@ def deshacer(sesion: Session, lote: str) -> int:
     for registro in pendientes:
         _restaurar(sesion, registro)
         registro.deshecho = True
+        # `estado_previo` ya cumplió su función: no existe "rehacer", y es un
+        # respaldo de datos personales (nombres, fechas de nacimiento,
+        # valores de registros anteriores) que no debe quedarse
+        # indefinidamente una vez que ya restauró lo que tenía que
+        # restaurar. Se vacía DESPUÉS de `_restaurar`, que es quien lo usa
+        # para saber qué deshacer; el resto de la fila (sha256, fecha, lote,
+        # acción, deshecho) se conserva para el historial y la detección de
+        # duplicados.
+        registro.estado_previo = None
         sesion.add(registro)
     sesion.commit()
     return len(pendientes)

@@ -140,6 +140,48 @@ def test_confirmar_con_el_anio_escrito_a_mano_importa_los_doce_meses(cliente, tm
     assert "15" in tarjeta
 
 
+def test_un_archivo_ya_aplicado_se_marca_claramente_al_fallar_otro_del_lote(
+    cliente, tmp_path
+):
+    """Cada archivo del lote se aplica (commitea) por separado: si el
+    segundo falla por falta de año, el primero ya quedó guardado de verdad.
+    La respuesta de error no debe mostrarlo como si no se hubiera guardado
+    nada."""
+    archivos = [
+        (
+            "archivos",
+            ("Con Anio.pdf", _tarjeta_bytes(tmp_path, "Con Anio", anio="2025"), "application/pdf"),
+        ),
+        (
+            "archivos",
+            ("Sin Anio.pdf", _tarjeta_bytes(tmp_path, "Sin Anio", anio=""), "application/pdf"),
+        ),
+    ]
+    revision = cliente.post("/importar", files=archivos, follow_redirects=True)
+    lote = revision.text.split('action="/importar/')[1].split('"')[0]
+
+    respuesta = cliente.post(
+        f"/importar/{lote}",
+        data={
+            "destino_0": "nuevo",
+            "mes_0_9": "1",
+            "destino_1": "nuevo",
+            "mes_1_9": "1",
+        },
+    )
+
+    assert respuesta.status_code == 400
+    # el primero sí se guardó...
+    assert "Con Anio" in cliente.get("/publicadores").text
+    # ...el segundo no...
+    assert "Sin Anio" not in cliente.get("/publicadores").text
+    # ...y la respuesta lo deja ver de un vistazo, sin ambigüedad
+    assert "ya se guardó" in respuesta.text
+    # el aviso de "sin año legible" es solo del archivo que de verdad falta:
+    # el que ya se aplicó no debe volver a mostrarse como si le faltara el año
+    assert respuesta.text.count("no trae un año de servicio legible") == 1
+
+
 def test_omitir_un_archivo_no_escribe_nada(cliente, tmp_path):
     revision = _subir(cliente, tmp_path, ["Rojas Mauricio"])
     lote = revision.text.split('action="/importar/')[1].split('"')[0]

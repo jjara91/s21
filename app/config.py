@@ -40,12 +40,21 @@ def _secret_key_persistida(data_dir: Path) -> str:
     Vive en `data/secret_key` en vez de en el entorno para que un despliegue
     que no fija SECRET_KEY (o deja el valor de ejemplo) no firme las sesiones
     con una clave publicada, sin que nadie tenga que generar nada a mano.
+
+    Es la clave que firma las sesiones de un sistema con datos personales de
+    la congregación, así que el archivo se crea con permisos `0600` (solo
+    lectura/escritura del dueño) en vez de heredar el umask por defecto, que
+    normalmente lo deja legible por cualquiera. Si el archivo ya existiera
+    con permisos más abiertos —por ejemplo, escrito antes de este cambio—
+    se corrigen también al leerlo.
     """
     ruta = data_dir / "secret_key"
     if ruta.exists():
+        ruta.chmod(0o600)
         return ruta.read_text(encoding="utf-8").strip()
     clave = secrets.token_hex(32)
     ruta.write_text(clave, encoding="utf-8")
+    ruta.chmod(0o600)
     return clave
 
 

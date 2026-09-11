@@ -1,3 +1,4 @@
+import json
 import os
 import time
 from datetime import date, datetime
@@ -6,6 +7,7 @@ from io import BytesIO
 import pytest
 from pypdf import PdfWriter
 
+from app.models import Importacion
 from app.pdf import campos
 from app.services import importacion, nombramientos, publicadores, registros
 
@@ -312,6 +314,78 @@ def test_deshacer_restaura_el_valor_original_no_el_intermedio(
     importacion.deshacer(sesion, "L1")
 
     assert registros.registros_del_anio(sesion, mauricio.id, 2025)[9].horas == 99
+
+
+def test_aplicar_no_guarda_el_nombre_original_del_archivo(sesion, tarjeta_mauricio):
+    """`Importacion` es un registro permanente -el deshacer no caduca-, y el
+    nombre del PDF original (típicamente el nombre de la persona) no se
+    vuelve a mostrar en ninguna pantalla después de aplicar: no hay razón
+    para conservarlo indefinidamente."""
+    propuesta = importacion.analizar(sesion, "Mauricio Andrés Rojas Vega.pdf", tarjeta_mauricio)
+
+    registro = importacion.aplicar(sesion, _decision_total(propuesta), lote="L1", ahora=AHORA)
+
+    assert "Mauricio" not in registro.archivo
+    assert "Rojas" not in registro.archivo
+
+
+def test_deshacer_vacia_el_estado_previo_y_el_sha256_sigue_detectando_duplicados(
+    sesion, tarjeta_mauricio
+):
+    propuesta = importacion.analizar(sesion, "mauricio.pdf", tarjeta_mauricio)
+    registro = importacion.aplicar(sesion, _decision_total(propuesta), lote="L1", ahora=AHORA)
+    assert registro.estado_previo  # algo se guardó, si no el test no prueba nada
+
+    importacion.deshacer(sesion, "L1")
+
+    deshecho = sesion.get(Importacion, registro.id)
+    assert deshecho.deshecho is True
+    assert deshecho.estado_previo is None
+    # el resto de la fila sigue intacta
+    assert deshecho.sha256 == propuesta.sha256
+    assert deshecho.lote == "L1"
+
+    # la detección de duplicados por sha256 no depende de estado_previo: al
+    # deshacerse, este registro deja de contar (se puede reimportar), pero
+    # una importación nueva del mismo archivo sí vuelve a detectarse
+    reanalizado = importacion.analizar(sesion, "mauricio.pdf", tarjeta_mauricio)
+    assert reanalizado.ya_importado is None
+
+    importacion.aplicar(sesion, _decision_total(reanalizado), lote="L2", ahora=AHORA)
+    tercera_vez = importacion.analizar(sesion, "mauricio.pdf", tarjeta_mauricio)
+    assert tercera_vez.ya_importado == AHORA
+
+
+def test_deshacer_borra_el_snapshot_de_publicador_en_otras_filas_que_lo_referencian(
+    sesion, tarjeta_mauricio
+):
+    """Si el publicador que una importación creó se borra al deshacer, el
+    snapshot de sus campos que quedó guardado en el estado_previo de OTRAS
+    importaciones -las que después lo actualizaron- deja de tener sentido:
+    ya no hay a qué publicador restaurarlo."""
+    propuesta = importacion.analizar(sesion, "mauricio.pdf", tarjeta_mauricio)
+    creado = importacion.aplicar(sesion, _decision_total(propuesta), lote="L1", ahora=AHORA)
+    mauricio_id = creado.publicador_id
+
+    decision_actualiza = importacion.Decision(
+        propuesta=propuesta,
+        publicador_id=mauricio_id,
+        aceptar_campos={"fecha_bautismo"},
+        aceptar_nombramientos=[],
+        aceptar_meses=set(),
+    )
+    actualizado = importacion.aplicar(sesion, decision_actualiza, lote="L2", ahora=AHORA)
+    estado_antes = json.loads(actualizado.estado_previo)
+    assert estado_antes["publicador"] is not None  # sanity
+
+    importacion.deshacer(sesion, "L1")  # borra al publicador que L1 creó
+
+    fila_l2 = sesion.get(Importacion, actualizado.id)
+    estado_despues = json.loads(fila_l2.estado_previo)
+    assert estado_despues["publicador"] is None
+    # el resto del estado_previo de L2 no se toca
+    assert estado_despues["publicador_creado"] is False
+    assert fila_l2.deshecho is False
 
 
 def test_deshacer_dos_veces_no_hace_nada_la_segunda(sesion, tarjeta_mauricio):
