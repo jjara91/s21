@@ -52,6 +52,7 @@ class InformeMensual:
     total_cursos: int
     total_horas: int
     no_informaron: int
+    sin_cargar: int
     promedio_horas_precursor_regular: int | None
 
 
@@ -63,8 +64,12 @@ def informe_mensual(sesion, anio: int, mes: int) -> InformeMensual:
 
     del_mes = registros.filas_del_mes(sesion, anio, mes)
     informaron = 0
+    sin_cargar = 0
     for publicador, registro, _habilitadas in del_mes:
-        if registro is None or not registro.participo:
+        if registro is None:
+            sin_cargar += 1
+            continue
+        if not registro.participo:
             continue
         informaron += 1
         tipos = nombramientos.tipos_en_mes(sesion, publicador.id, anio, mes)
@@ -91,7 +96,8 @@ def informe_mensual(sesion, anio: int, mes: int) -> InformeMensual:
         total_informaron=informaron,
         total_cursos=sum(fila.cursos for fila in ordenadas),
         total_horas=sum(fila.horas or 0 for fila in ordenadas),
-        no_informaron=len(del_mes) - informaron,
+        no_informaron=len(del_mes) - informaron - sin_cargar,
+        sin_cargar=sin_cargar,
         promedio_horas_precursor_regular=promedio,
     )
 

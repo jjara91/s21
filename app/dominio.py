@@ -58,9 +58,12 @@ class DatosTarjeta:
     anio_servicio: int | None = None
     fecha_nacimiento: date | None = None
     fecha_bautismo: date | None = None
-    # texto original cuando la fecha del PDF no se pudo interpretar
+    # texto original cuando la fecha (o el año de servicio) del PDF no se
+    # pudo interpretar, para poder mostrárselo al usuario en vez de un
+    # simple "sin año"
     fecha_nacimiento_cruda: str | None = None
     fecha_bautismo_cruda: str | None = None
+    anio_servicio_crudo: str | None = None
     sexo: str | None = None
     esperanza: str | None = None
     nombramientos: set[str] = field(default_factory=set)

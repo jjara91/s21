@@ -7,12 +7,12 @@ from sqlmodel import Session
 
 from app.auth import requerir_sesion
 from app.db import obtener_sesion
-from app.dominio import anio_servicio_de
+from app.dominio import anio_servicio_de, rango_anio_servicio
 from app.pdf.plantilla import TarjetaInvalida
 from app.services import grupos, registros
 from app.services import publicadores as servicio_publicadores
 from app.services import tarjetas as servicio
-from app.web.errores import anio_de_servicio
+from app.web.errores import anio_valido
 from app.web.plantillas import plantillas
 
 router = APIRouter()
@@ -93,7 +93,7 @@ def descargar_tarjeta(
     sesion: Session = Depends(obtener_sesion),
     _usuario: str = Depends(requerir_sesion),
 ):
-    anio_servicio = anio_de_servicio(anio_servicio)
+    anio_servicio = anio_valido(anio_servicio)
     try:
         nombre, contenido = servicio.pdf_de(
             sesion, publicador_id, anio_servicio, aplanado=aplanado
@@ -111,7 +111,7 @@ def ver_tarjeta(
     sesion: Session = Depends(obtener_sesion),
     _usuario: str = Depends(requerir_sesion),
 ):
-    anio_servicio = anio_de_servicio(anio_servicio)
+    anio_servicio = anio_valido(anio_servicio)
     registros.aplicar_notas_sugeridas(sesion, publicador_id, anio_servicio)
     return plantillas.TemplateResponse(
         request,
@@ -150,10 +150,20 @@ def exportar_lote(
     sesion: Session = Depends(obtener_sesion),
     _usuario: str = Depends(requerir_sesion),
 ):
-    anio_servicio = anio_de_servicio(anio_servicio)
+    anio_servicio = anio_valido(anio_servicio)
+    # Se exportan también quienes se dieron de baja a mitad del año de servicio:
+    # sus tarjetas de los meses en que sí estuvieron activos hay que imprimirlas
+    # y archivarlas igual que las de todos los demás. `activos_en` responde
+    # "¿seguía activo en esta fecha?"; para no dejar fuera a quien se dio de
+    # baja dentro del año (por ejemplo en marzo), hay que preguntarlo con el
+    # primer día del año de servicio, no con el último: con el último,
+    # cualquier baja de mitad de año quedaría excluida igual que hoy.
+    inicio_anio_servicio, _fin = rango_anio_servicio(anio_servicio)
     ids = [
         publicador.id
-        for publicador in servicio_publicadores.listar(sesion, grupo_id=grupo_id)
+        for publicador in servicio_publicadores.listar(
+            sesion, grupo_id=grupo_id, activos_en=inicio_anio_servicio
+        )
     ]
     try:
         if formato == "combinado":

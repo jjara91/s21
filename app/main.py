@@ -4,11 +4,11 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI, Request
 from fastapi.responses import RedirectResponse
 from fastapi.staticfiles import StaticFiles
-from sqlalchemy.exc import IntegrityError
+from sqlalchemy.exc import IntegrityError, OperationalError
 from starlette.middleware.sessions import SessionMiddleware
 
 from app.auth import SinSesion, redirigir_al_login
-from app.config import cargar_config
+from app.config import cargar_config, verificar_arranque
 from app.db import motor
 from app.services.grupos import GrupoNoEncontrado
 from app.services.publicadores import PublicadorNoEncontrado
@@ -28,6 +28,7 @@ from app.web.routers import (
 
 @asynccontextmanager
 async def ciclo_de_vida(_app: FastAPI):
+    verificar_arranque()  # se niega a arrancar con credenciales de ejemplo
     motor()  # aplica las migraciones pendientes al arrancar
     yield
 
@@ -89,6 +90,37 @@ def integridad(request: Request, error: IntegrityError):
         "No se pudo guardar",
         "Algún dato relacionado ya no existe. Recarga la página y vuelve a intentarlo.",
         400,
+    )
+
+
+@app.exception_handler(OperationalError)
+def base_ocupada(request: Request, error: OperationalError):
+    # El último tramo antes de una traza cruda en uso normal: dos escrituras
+    # casi simultáneas (doble clic en guardar, o descargar el respaldo
+    # mientras alguien guarda) agotan el busy_timeout y sqlite devuelve
+    # "database is locked". No es un error del usuario ni un bug: solo hay
+    # que reintentar.
+    logging.getLogger("s21").exception("OperationalError de la base: %s", error)
+    return _pagina_error(
+        request,
+        "Base de datos ocupada",
+        "La base de datos está ocupada con otra operación. Espera un momento y vuelve a intentarlo.",
+        503,
+    )
+
+
+@app.exception_handler(Exception)
+def error_no_previsto(request: Request, error: Exception):
+    # Red de seguridad de último recurso: cualquier excepción que no tenga un
+    # manejador más específico llega aquí. Sin esto, un bug no previsto
+    # muestra una traza completa —con rutas del servidor y a veces datos— en
+    # el navegador de quien esté usando la aplicación.
+    logging.getLogger("s21").exception("Error sin capturar: %s", error)
+    return _pagina_error(
+        request,
+        "Error inesperado",
+        "Ocurrió un error inesperado. Vuelve a intentarlo; si persiste, avisa al administrador.",
+        500,
     )
 
 

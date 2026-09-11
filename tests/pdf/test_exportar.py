@@ -95,6 +95,14 @@ def test_nombre_de_archivo_sin_caracteres_de_ruta():
     )
 
 
+def test_nombre_de_archivo_sin_caracteres_reservados_de_windows():
+    """El ZIP se abre en Windows: * ? " < > | no son válidos en un nombre
+    de archivo ahí, aunque sí lo sean en Linux/macOS donde corre el servidor."""
+    assert exportar.nombre_archivo('Ana* "Pérez"? <Luis> |Gómez|', 2026) == (
+        "Ana- -Pérez-- -Luis- -Gómez- - 2026.pdf"
+    )
+
+
 def test_fecha_ilegible_usa_fallback_crudo(plantilla_sintetica):
     """Verifica que _fecha(None, crudo) cae a crudo cuando la fecha no se pudo interpretar."""
     tarjeta = DatosTarjeta.vacia(nombre="Torres López Mauricio", anio_servicio=2025)

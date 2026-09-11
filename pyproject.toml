@@ -3,17 +3,21 @@ name = "s21"
 version = "0.1.0"
 requires-python = ">=3.12"
 dependencies = [
-    "fastapi",
-    "uvicorn[standard]",
-    "sqlmodel",
-    "jinja2",
-    "python-multipart",
-    "itsdangerous",
-    "pypdf>=5.1",
+    "fastapi>=0.115,<1",
+    "uvicorn[standard]>=0.30,<1",
+    "sqlmodel>=0.0.22,<0.1",
+    "jinja2>=3.1,<4",
+    "python-multipart>=0.0.9,<0.1",
+    "itsdangerous>=2.1,<3",
+    # aplanar() en app/pdf/exportar.py está montado sobre APIs privadas de
+    # pypdf (_add_object, _root_object): un salto de versión no pinada es lo
+    # que hizo que la imagen (6.18.1) y el venv de los tests (6.18.0)
+    # corrieran versiones distintas sin que nadie lo notara.
+    "pypdf>=5.1,<7",
 ]
 
 [project.optional-dependencies]
-dev = ["pytest", "httpx", "reportlab"]
+dev = ["pytest>=8,<10", "httpx>=0.27,<1", "reportlab>=4,<6"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

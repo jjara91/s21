@@ -21,6 +21,10 @@ def _tarjeta_bytes(tmp_path, nombre: str, anio: str = "2025") -> bytes:
             campos.CABECERA_TEXTO["anio_servicio"]: anio,
             campos.CABECERA_NOMBRAMIENTOS["siervo_ministerial"]: campos.MARCADA,
             campos.campo_fila("participo", 9): campos.MARCADA,
+            # marcado como auxiliar ese mes: sin esto, con solo el nombramiento
+            # de siervo ministerial (que no lleva horas), guardar_mes
+            # descartaría las horas de más abajo por no corresponderle.
+            campos.campo_fila("precursor_auxiliar", 9): campos.MARCADA,
             campos.campo_fila("horas", 9): "15",
         },
         auto_regenerate=False,
@@ -30,9 +34,12 @@ def _tarjeta_bytes(tmp_path, nombre: str, anio: str = "2025") -> bytes:
     return buffer.getvalue()
 
 
-def _subir(cliente, tmp_path, nombres: list[str]):
+def _subir(cliente, tmp_path, nombres: list[str], anio: str = "2025"):
     archivos = [
-        ("archivos", (f"{nombre}.pdf", _tarjeta_bytes(tmp_path, nombre), "application/pdf"))
+        (
+            "archivos",
+            (f"{nombre}.pdf", _tarjeta_bytes(tmp_path, nombre, anio=anio), "application/pdf"),
+        )
         for nombre in nombres
     ]
     return cliente.post("/importar", files=archivos, follow_redirects=True)
@@ -85,6 +92,52 @@ def test_aplicar_la_revision_crea_el_publicador_y_sus_registros(cliente, tmp_pat
     assert "Rojas Mauricio" in cliente.get("/publicadores").text
     assert "siervo ministerial" in cliente.get("/publicadores/1").text
     assert "15" in cliente.get("/publicadores/1/tarjeta/2025").text
+
+
+def _etiqueta_mes(texto: str, indice: int, mes: int) -> str:
+    """El resto de la etiqueta <input> de la casilla de un mes, desde su name."""
+    return texto.split(f'name="mes_{indice}_{mes}"')[1].split(">")[0]
+
+
+def test_tarjeta_sin_anio_muestra_el_campo_y_no_marca_los_meses(cliente, tmp_path):
+    revision = _subir(cliente, tmp_path, ["Rojas Mauricio"], anio="")
+
+    assert 'name="anio_0"' in revision.text
+    assert "no trae un año de servicio legible" in revision.text
+    # la casilla del mes existe, pero no viene marcada: hoy mentiría diciendo
+    # que se va a importar un mes que en realidad se va a descartar.
+    assert "checked" not in _etiqueta_mes(revision.text, 0, 9)
+
+
+def test_confirmar_sin_escribir_el_anio_no_crea_nada_y_avisa(cliente, tmp_path):
+    revision = _subir(cliente, tmp_path, ["Rojas Mauricio"], anio="")
+    lote = revision.text.split('action="/importar/')[1].split('"')[0]
+
+    respuesta = cliente.post(
+        f"/importar/{lote}",
+        data={"destino_0": "nuevo", "mes_0_9": "1"},
+    )
+
+    assert respuesta.status_code == 400
+    assert "no se importó" in respuesta.text
+    assert "No hay publicadores" in cliente.get("/publicadores").text
+    # el lote sigue disponible: no se borró solo porque un archivo falló
+    assert cliente.get(f"/importar/{lote}", follow_redirects=False).status_code == 200
+
+
+def test_confirmar_con_el_anio_escrito_a_mano_importa_los_doce_meses(cliente, tmp_path):
+    revision = _subir(cliente, tmp_path, ["Rojas Mauricio"], anio="")
+    lote = revision.text.split('action="/importar/')[1].split('"')[0]
+
+    datos = {"destino_0": "nuevo", "anio_0": "2025"}
+    for mes in range(1, 13):
+        datos[f"mes_0_{mes}"] = "1"
+
+    cliente.post(f"/importar/{lote}", data=datos, follow_redirects=True)
+
+    assert "Rojas Mauricio" in cliente.get("/publicadores").text
+    tarjeta = cliente.get("/publicadores/1/tarjeta/2025").text
+    assert "15" in tarjeta
 
 
 def test_omitir_un_archivo_no_escribe_nada(cliente, tmp_path):

@@ -66,6 +66,39 @@ def test_exportar_en_lote_devuelve_un_zip(cliente, tmp_path):
     assert respuesta.headers["content-type"] == "application/zip"
 
 
+def test_exportar_en_lote_incluye_a_quien_se_dio_de_baja_a_mitad_de_anio(cliente, tmp_path):
+    """El año de servicio 2026 corre de sep-2025 a ago-2026: alguien dado de
+    baja en marzo de 2026 estuvo activo la mayor parte del año y su tarjeta
+    hay que imprimirla y archivarla igual que la de todos los demás."""
+    _subir_plantilla(cliente, tmp_path)
+    cliente.post("/publicadores", data={"nombre_completo": "Baja Marzo"})
+    cliente.post(
+        "/publicadores/1/baja", data={"fecha_baja": "2026-03-10", "motivo_baja": "mudado"}
+    )
+
+    respuesta = cliente.post(
+        "/exportar", data={"anio_servicio": "2026", "formato": "combinado"}
+    )
+
+    assert len(PdfReader(BytesIO(respuesta.content)).pages) == 1
+
+
+def test_exportar_en_lote_excluye_a_quien_ya_se_habia_dado_de_baja_antes_del_anio(
+    cliente, tmp_path
+):
+    from zipfile import ZipFile
+
+    _subir_plantilla(cliente, tmp_path)
+    cliente.post("/publicadores", data={"nombre_completo": "Baja Anterior"})
+    cliente.post(
+        "/publicadores/1/baja", data={"fecha_baja": "2025-06-01", "motivo_baja": "mudado"}
+    )
+
+    respuesta = cliente.post("/exportar", data={"anio_servicio": "2026", "formato": "zip"})
+
+    assert ZipFile(BytesIO(respuesta.content)).namelist() == []
+
+
 def test_exportar_en_lote_combinado_devuelve_un_pdf(cliente, tmp_path):
     _subir_plantilla(cliente, tmp_path)
     cliente.post("/publicadores", data={"nombre_completo": "Perez Ana"})

@@ -1,6 +1,12 @@
 {% extends "base.html" %}
 {% block contenido %}
 <h1>Año de servicio {{ anio_servicio }}</h1>
+
+{% if not hay_plantilla %}
+<p class="error">Todavía no hay una plantilla del formulario S-21: para generar
+  tarjetas hace falta subir una. <a href="/plantilla">Súbela en /plantilla</a>.</p>
+{% endif %}
+
 <p><a href="/grilla?anio={{ hoy.year }}&amp;mes={{ hoy.month }}">
   Cargar {{ hoy.month | mes_nombre }} de {{ hoy.year }}</a></p>
 

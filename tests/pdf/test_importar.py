@@ -105,6 +105,30 @@ def test_las_horas_no_numericas_no_abortan_la_lectura(plantilla_sintetica):
     assert tarjeta.mes(10).horas == 30
 
 
+def test_anio_de_servicio_no_numerico_conserva_el_texto_crudo(plantilla_sintetica):
+    contenido = _tarjeta(
+        plantilla_sintetica,
+        {
+            campos.CABECERA_TEXTO["nombre"]: "Perez Ana",
+            campos.CABECERA_TEXTO["anio_servicio"]: "2025-2026",
+        },
+    )
+
+    tarjeta = importar.leer_tarjeta(contenido)
+
+    assert tarjeta.anio_servicio is None
+    assert tarjeta.anio_servicio_crudo == "2025-2026"
+
+
+def test_anio_de_servicio_vacio_no_deja_texto_crudo(plantilla_sintetica):
+    contenido = _tarjeta(plantilla_sintetica, {campos.CABECERA_TEXTO["nombre"]: "Perez Ana"})
+
+    tarjeta = importar.leer_tarjeta(contenido)
+
+    assert tarjeta.anio_servicio is None
+    assert tarjeta.anio_servicio_crudo is None
+
+
 def test_rechaza_un_pdf_que_no_es_s21():
     escritor = PdfWriter()
     escritor.add_blank_page(width=200, height=200)

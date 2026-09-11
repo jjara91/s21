@@ -171,3 +171,44 @@ def test_las_horas_se_habilitan_al_marcar_auxiliar_aunque_haya_error_en_esa_mism
 
     assert respuesta.status_code == 400
     assert "disabled" not in _etiqueta_horas(respuesta.text, 1)
+
+
+def test_grilla_con_mes_fuera_de_rango_da_400_en_espanol(cliente):
+    respuesta = cliente.get("/grilla", params={"anio": 2026, "mes": 13})
+
+    assert respuesta.status_code == 400
+    assert "no es válido" in respuesta.text
+    assert "Traceback" not in respuesta.text
+
+
+def test_grilla_con_mes_cero_da_400_en_espanol(cliente):
+    respuesta = cliente.get("/grilla", params={"anio": 2026, "mes": 0})
+
+    assert respuesta.status_code == 400
+    assert "no es válido" in respuesta.text
+
+
+def test_grilla_con_anio_fuera_de_rango_da_400_en_espanol(cliente):
+    respuesta = cliente.get("/grilla", params={"anio": 999999, "mes": 1})
+
+    assert respuesta.status_code == 400
+    assert "fuera de rango" in respuesta.text
+    assert "out of range" not in respuesta.text
+
+
+def test_guardar_grilla_con_mes_fuera_de_rango_da_400_en_espanol(cliente):
+    respuesta = cliente.post(
+        "/grilla", data={"anio": "2026", "mes": "13", "publicadores": []}
+    )
+
+    assert respuesta.status_code == 400
+    assert "no es válido" in respuesta.text
+
+
+def test_guardar_grilla_con_anio_fuera_de_rango_da_400_en_espanol(cliente):
+    respuesta = cliente.post(
+        "/grilla", data={"anio": "999999", "mes": "1", "publicadores": []}
+    )
+
+    assert respuesta.status_code == 400
+    assert "fuera de rango" in respuesta.text

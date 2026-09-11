@@ -29,10 +29,20 @@ def fecha_opcional(valor: str | None, etiqueta: str) -> date | None:
 ANIO_MINIMO, ANIO_MAXIMO = 1950, 2100
 
 
-def anio_de_servicio(valor: int) -> int:
+def anio_valido(valor: int) -> int:
+    """Valida un año (de servicio o calendario, según lo use quien llama)."""
     if not ANIO_MINIMO <= valor <= ANIO_MAXIMO:
         raise DatosInvalidos(
-            f"El año de servicio {valor} está fuera de rango. "
+            f"El año {valor} está fuera de rango. "
             f"Debe estar entre {ANIO_MINIMO} y {ANIO_MAXIMO}."
         )
+    return valor
+
+
+def mes_valido(valor: int) -> int:
+    # `mes | mes_nombre` en la plantilla busca la clave en un diccionario de
+    # 1 a 12: sin este control, un mes fuera de rango en la URL no cae en un
+    # error de negocio legible sino en un KeyError sin capturar.
+    if not 1 <= valor <= 12:
+        raise DatosInvalidos(f"El mes {valor} no es válido. Debe estar entre 1 y 12.")
     return valor

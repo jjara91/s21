@@ -15,6 +15,7 @@ def _ana(sesion):
 
 def test_guardar_mes_crea_las_filas(sesion):
     ana = _ana(sesion)
+    nombramientos.crear(sesion, ana.id, "precursor_regular", date(2025, 9, 1))
 
     guardadas = registros.guardar_mes(
         sesion,
@@ -29,6 +30,7 @@ def test_guardar_mes_crea_las_filas(sesion):
 
 def test_guardar_mes_actualiza_en_vez_de_duplicar(sesion):
     ana = _ana(sesion)
+    nombramientos.crear(sesion, ana.id, "precursor_regular", date(2025, 9, 1))
     registros.guardar_mes(
         sesion, 2025, 9, [registros.EntradaMes(publicador_id=ana.id, horas=52)]
     )
@@ -40,6 +42,49 @@ def test_guardar_mes_actualiza_en_vez_de_duplicar(sesion):
     del_anio = registros.registros_del_anio(sesion, ana.id, 2026)
     assert len(del_anio) == 1
     assert del_anio[9].horas == 60
+
+
+def test_guardar_mes_ignora_horas_de_quien_no_puede_tenerlas(sesion):
+    """El HTML deshabilita el campo de horas para un publicador común, pero
+    guardar_mes no debe confiar solo en eso: un POST hecho a mano (o una
+    importación) no pasa por ese HTML."""
+    ana = _ana(sesion)
+
+    registros.guardar_mes(
+        sesion,
+        2025,
+        9,
+        [registros.EntradaMes(publicador_id=ana.id, participo=True, horas=52)],
+    )
+
+    assert registros.registros_del_anio(sesion, ana.id, 2026)[9].horas is None
+
+
+def test_filas_del_mes_de_un_mes_pasado_sigue_incluyendo_a_quien_se_dio_de_baja_despues(
+    sesion,
+):
+    ana = _ana(sesion)
+    registros.guardar_mes(
+        sesion, 2026, 1, [registros.EntradaMes(publicador_id=ana.id, participo=True)]
+    )
+
+    from app.services import publicadores
+
+    publicadores.dar_de_baja(sesion, ana.id, date(2026, 3, 10), "mudada")
+
+    filas_enero = registros.filas_del_mes(sesion, 2026, 1)
+
+    assert [p.id for p, _r, _h in filas_enero] == [ana.id]
+
+
+def test_filas_del_mes_excluye_a_quien_ya_se_habia_dado_de_baja_antes(sesion):
+    ana = _ana(sesion)
+
+    from app.services import publicadores
+
+    publicadores.dar_de_baja(sesion, ana.id, date(2025, 12, 1), "mudada")
+
+    assert registros.filas_del_mes(sesion, 2026, 1) == []
 
 
 def test_filas_del_mes_incluye_a_quien_no_tiene_registro(sesion):

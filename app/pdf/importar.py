@@ -65,7 +65,7 @@ def leer_tarjeta(contenido: bytes) -> DatosTarjeta:
     bautismo, bautismo_crudo = parsear_fecha(
         _texto(valores, campos.CABECERA_TEXTO["fecha_bautismo"])
     )
-    anio, _ = _entero(_texto(valores, campos.CABECERA_TEXTO["anio_servicio"]))
+    anio, anio_crudo = _entero(_texto(valores, campos.CABECERA_TEXTO["anio_servicio"]))
 
     sexo = next(
         (clave for clave, campo in campos.CABECERA_SEXO.items() if _marcada(valores, campo)),
@@ -116,6 +116,7 @@ def leer_tarjeta(contenido: bytes) -> DatosTarjeta:
         fecha_bautismo=bautismo,
         fecha_nacimiento_cruda=nacimiento_crudo,
         fecha_bautismo_cruda=bautismo_crudo,
+        anio_servicio_crudo=anio_crudo,
         sexo=sexo,
         esperanza=esperanza,
         nombramientos=nombramientos,

@@ -1,6 +1,8 @@
 """Carga de los informes mensuales y armado de la tarjeta de un año."""
 
+from calendar import monthrange
 from dataclasses import dataclass
+from datetime import date
 
 from sqlmodel import Session, select
 
@@ -30,6 +32,15 @@ def _registro(
     return sesion.exec(consulta).first()
 
 
+def _puede_tener_horas(
+    sesion: Session, publicador_id: int, anio: int, mes: int, precursor_auxiliar: bool
+) -> bool:
+    """Hay nombramiento de precursor o misionero vigente ese mes, o la fila
+    está marcada como precursor auxiliar."""
+    tipos = nombramientos.tipos_en_mes(sesion, publicador_id, anio, mes)
+    return bool(tipos & set(TIPOS_CON_HORAS)) or precursor_auxiliar
+
+
 def guardar_mes(
     sesion: Session, anio: int, mes: int, entradas: list[EntradaMes]
 ) -> int:
@@ -47,7 +58,18 @@ def guardar_mes(
         fila.participo = entrada.participo
         fila.cursos_biblicos = entrada.cursos_biblicos
         fila.precursor_auxiliar = entrada.precursor_auxiliar
-        fila.horas = entrada.horas
+        # Revalidado aquí y no en el router: el HTML deshabilita el campo de
+        # horas para quien no corresponde, pero un POST hecho a mano —o una
+        # importación, que pasa por este mismo servicio— no pasa por ese
+        # HTML. Sin este control colaría horas para quien no es precursor ni
+        # fue marcado auxiliar ese mes.
+        fila.horas = (
+            entrada.horas
+            if _puede_tener_horas(
+                sesion, entrada.publicador_id, anio, mes, entrada.precursor_auxiliar
+            )
+            else None
+        )
         fila.notas = entrada.notas
         sesion.add(fila)
     sesion.commit()
@@ -62,13 +84,18 @@ def filas_del_mes(
     El tercer elemento indica si el campo de horas corresponde: hay nombramiento
     de precursor o misionero vigente ese mes, o la fila está marcada como
     precursor auxiliar.
+
+    Incluye a quien se dio de baja durante este mes o después: un informe de
+    un mes pasado no debe cambiar porque alguien se dé de baja más adelante.
     """
+    ultimo_dia = monthrange(anio, mes)[1]
     filas = []
-    for publicador in publicadores.listar(sesion, grupo_id=grupo_id):
+    for publicador in publicadores.listar(
+        sesion, grupo_id=grupo_id, activos_en=date(anio, mes, ultimo_dia)
+    ):
         registro = _registro(sesion, publicador.id, anio, mes)
-        tipos = nombramientos.tipos_en_mes(sesion, publicador.id, anio, mes)
-        con_horas = bool(tipos & set(TIPOS_CON_HORAS)) or bool(
-            registro and registro.precursor_auxiliar
+        con_horas = _puede_tener_horas(
+            sesion, publicador.id, anio, mes, bool(registro and registro.precursor_auxiliar)
         )
         filas.append((publicador, registro, con_horas))
     return filas

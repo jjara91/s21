@@ -8,7 +8,7 @@ from sqlmodel import Session
 from app.auth import requerir_sesion
 from app.db import obtener_sesion
 from app.services import grupos, registros
-from app.web.errores import DatosInvalidos
+from app.web.errores import DatosInvalidos, anio_valido, mes_valido
 from app.web.plantillas import plantillas
 
 router = APIRouter(prefix="/grilla")
@@ -41,8 +41,8 @@ def ver(
     _usuario: str = Depends(requerir_sesion),
 ):
     hoy = date.today()
-    anio = anio or hoy.year
-    mes = mes or hoy.month
+    anio = anio_valido(anio) if anio is not None else hoy.year
+    mes = mes_valido(mes) if mes is not None else hoy.month
     return plantillas.TemplateResponse(
         request,
         "grilla.html",
@@ -66,6 +66,8 @@ async def guardar(
     sesion: Session = Depends(obtener_sesion),
     _usuario: str = Depends(requerir_sesion),
 ):
+    anio = anio_valido(anio)
+    mes = mes_valido(mes)
     formulario = await request.form()
 
     ids_enviados = []

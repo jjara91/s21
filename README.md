@@ -38,6 +38,24 @@ La prueba que compara el mapa de campos contra el formulario real se salta si no
 existe `data/plantilla_s21.pdf`. En el equipo donde sí existe, es la que avisa
 primero si aparece una versión nueva del S-21.
 
+### Correr la suite dentro de la imagen
+
+Las dependencias tienen rango fijado en `pyproject.toml`, pero un venv local y
+la imagen de Docker pueden de todas formas resolver versiones distintas dentro
+de ese rango (es lo que pasó con pypdf, del que `aplanar()` usa APIs
+privadas). Para correr los tests con exactamente lo que se despliega:
+
+```bash
+docker build -t s21-test .
+docker run --rm --entrypoint bash s21-test -c "
+  pip install --no-cache-dir '.[dev]' &&
+  pytest
+"
+```
+
+Si algo falla solo ahí y no en el venv local, es una señal de que las
+versiones resueltas divergieron dentro del rango permitido.
+
 ## Documentos
 
 - Diseño: `docs/superpowers/specs/2026-09-09-gestion-registros-predicacion-design.md`

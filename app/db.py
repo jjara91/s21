@@ -21,7 +21,14 @@ DIRECTORIO_MIGRACIONES = Path(__file__).resolve().parent.parent / "migrations"
 def crear_engine(ruta: Path) -> Engine:
     ruta.parent.mkdir(parents=True, exist_ok=True)
     engine = create_engine(
-        f"sqlite:///{ruta}", connect_args={"check_same_thread": False}
+        f"sqlite:///{ruta}",
+        # `timeout` (segundos) es el busy_timeout de sqlite3: cuánto espera un
+        # hilo antes de rendirse con "database is locked" si otro tiene la
+        # base bloqueada. Sin esto, dos escrituras casi simultáneas —un doble
+        # clic en guardar, o descargar el respaldo mientras alguien guarda—
+        # terminan en un OperationalError inmediato en vez de esperar a que
+        # la otra transacción termine, que es lo normal en un uso real.
+        connect_args={"check_same_thread": False, "timeout": 30},
     )
 
     @event.listens_for(engine, "connect")

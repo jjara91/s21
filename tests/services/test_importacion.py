@@ -52,6 +52,23 @@ def tarjeta_mauricio(plantilla_sintetica):
     )
 
 
+@pytest.fixture
+def tarjeta_mauricio_sin_anio(plantilla_sintetica):
+    """La misma tarjeta, pero con el año de servicio escrito a mano de forma
+    ilegible para el sistema (un rango, en vez de un solo año)."""
+    return _pdf(
+        plantilla_sintetica,
+        {
+            campos.CABECERA_TEXTO["nombre"]: "Mauricio Andrés Rojas Vega",
+            campos.CABECERA_TEXTO["anio_servicio"]: "2024-2025",
+            campos.CABECERA_NOMBRAMIENTOS["siervo_ministerial"]: campos.MARCADA,
+            campos.campo_fila("participo", 9): campos.MARCADA,
+            campos.campo_fila("precursor_auxiliar", 9): campos.MARCADA,
+            campos.campo_fila("horas", 9): "15",
+        },
+    )
+
+
 def _decision_total(propuesta, publicador_id=None):
     return importacion.Decision(
         propuesta=propuesta,
@@ -116,6 +133,48 @@ def test_no_propone_un_nombramiento_que_ya_existe(sesion, tarjeta_mauricio):
     propuesta = importacion.analizar(sesion, "mauricio.pdf", tarjeta_mauricio)
 
     assert propuesta.nombramientos == []
+
+
+def test_sin_anio_legible_la_propuesta_no_trae_meses_ni_nombramientos(
+    sesion, tarjeta_mauricio_sin_anio
+):
+    """Diseño: año de servicio vacío o no numérico se pide en la pantalla de
+    revisión. Sin `anio_servicio_manual`, analizar no debe inventar nada."""
+    propuesta = importacion.analizar(sesion, "mauricio.pdf", tarjeta_mauricio_sin_anio)
+
+    assert propuesta.datos.anio_servicio is None
+    assert propuesta.datos.anio_servicio_crudo == "2024-2025"
+    assert propuesta.nombramientos == []
+    assert propuesta.meses_en_conflicto == []
+
+
+def test_anio_servicio_manual_completa_la_propuesta(sesion, tarjeta_mauricio_sin_anio):
+    """Con el año que el usuario escribió a mano, la propuesta debe quedar
+    igual que si la tarjeta lo hubiera traído: mismos nombramientos
+    propuestos y mismo mes en conflicto."""
+    mauricio = publicadores.crear(sesion, "Mauricio Andrés Rojas Vega")
+    registros.guardar_mes(
+        sesion, 2024, 9, [registros.EntradaMes(publicador_id=mauricio.id, horas=99)]
+    )
+    nombramientos.crear(sesion, mauricio.id, "precursor_regular", date(2020, 1, 1))
+
+    propuesta = importacion.analizar(
+        sesion, "mauricio.pdf", tarjeta_mauricio_sin_anio, anio_servicio_manual=2025
+    )
+
+    assert propuesta.datos.anio_servicio == 2025
+    assert propuesta.nombramientos == [
+        importacion.NombramientoPropuesto("siervo_ministerial", date(2024, 9, 1))
+    ]
+    assert propuesta.meses_en_conflicto == [9]
+
+
+def test_anio_servicio_manual_no_pisa_el_que_trae_la_tarjeta(sesion, tarjeta_mauricio):
+    propuesta = importacion.analizar(
+        sesion, "mauricio.pdf", tarjeta_mauricio, anio_servicio_manual=1999
+    )
+
+    assert propuesta.datos.anio_servicio == 2025
 
 
 def test_marca_los_meses_que_pisarian_un_valor_distinto(sesion, tarjeta_mauricio):
@@ -198,6 +257,7 @@ def test_deshacer_borra_el_publicador_creado_por_el_lote(sesion, tarjeta_maurici
 
 def test_deshacer_devuelve_los_registros_a_su_valor_anterior(sesion, tarjeta_mauricio):
     mauricio = publicadores.crear(sesion, "Mauricio Andrés Rojas Vega")
+    nombramientos.crear(sesion, mauricio.id, "precursor_regular", date(2020, 1, 1))
     registros.guardar_mes(
         sesion, 2024, 9, [registros.EntradaMes(publicador_id=mauricio.id, horas=99)]
     )
@@ -232,6 +292,7 @@ def test_deshacer_restaura_el_valor_original_no_el_intermedio(
     sesion, tarjeta_mauricio, tarjeta_mauricio_horas_20
 ):
     mauricio = publicadores.crear(sesion, "Mauricio Andrés Rojas Vega")
+    nombramientos.crear(sesion, mauricio.id, "precursor_regular", date(2020, 1, 1))
     registros.guardar_mes(
         sesion, 2024, 9, [registros.EntradaMes(publicador_id=mauricio.id, horas=99)]
     )

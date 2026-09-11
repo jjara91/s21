@@ -47,6 +47,20 @@ def test_actualizar_recalcula_el_nombre_normalizado(sesion):
     assert actualizado.nombre_normalizado == "perez soto ana"
 
 
+def test_actualizar_ignora_un_nombre_normalizado_suelto(sesion):
+    """`nombre_normalizado` se deriva siempre de `nombre_completo`: aceptar
+    uno suelto lo dejaría desincronizado y rompería el emparejamiento por
+    nombre al importar."""
+    creado = publicadores.crear(sesion, "Perez Ana")
+
+    actualizado = publicadores.actualizar(
+        sesion, creado.id, nombre_normalizado="cualquier cosa", sexo="M"
+    )
+
+    assert actualizado.nombre_normalizado == "perez ana"
+    assert actualizado.sexo == "M"
+
+
 def test_listar_excluye_las_bajas_por_defecto(sesion):
     activo = publicadores.crear(sesion, "Activo Uno")
     baja = publicadores.crear(sesion, "Baja Dos")
@@ -54,6 +68,35 @@ def test_listar_excluye_las_bajas_por_defecto(sesion):
 
     assert [p.id for p in publicadores.listar(sesion)] == [activo.id]
     assert len(publicadores.listar(sesion, incluir_bajas=True)) == 2
+
+
+def test_listar_activos_en_incluye_a_quien_se_dio_de_baja_despues_de_esa_fecha(sesion):
+    """Alguien dado de baja en marzo debe seguir contando en un informe o
+    exportación de un período anterior a marzo: si no, dar de baja a alguien
+    reescribe en silencio lo que ya se había presentado."""
+    baja_en_marzo = publicadores.crear(sesion, "Baja Uno")
+    publicadores.dar_de_baja(sesion, baja_en_marzo.id, date(2026, 3, 10), "mudado")
+
+    activos_en_enero = publicadores.listar(sesion, activos_en=date(2026, 1, 31))
+
+    assert [p.id for p in activos_en_enero] == [baja_en_marzo.id]
+
+
+def test_listar_activos_en_excluye_a_quien_ya_se_habia_dado_de_baja_antes(sesion):
+    baja_en_enero = publicadores.crear(sesion, "Baja Uno")
+    publicadores.dar_de_baja(sesion, baja_en_enero.id, date(2026, 1, 5), "mudado")
+
+    activos_en_marzo = publicadores.listar(sesion, activos_en=date(2026, 3, 31))
+
+    assert activos_en_marzo == []
+
+
+def test_listar_activos_en_no_afecta_a_quien_nunca_se_dio_de_baja(sesion):
+    siempre_activo = publicadores.crear(sesion, "Activo Uno")
+
+    assert [p.id for p in publicadores.listar(sesion, activos_en=date(2026, 1, 31))] == [
+        siempre_activo.id
+    ]
 
 
 def test_listar_filtra_por_grupo(sesion):

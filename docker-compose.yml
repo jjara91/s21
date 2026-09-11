@@ -4,4 +4,9 @@ services:
     ports: ["127.0.0.1:8000:8000"]
     volumes: ["./data:/data"]
     env_file: .env
+    # El contenedor corre en UTC por defecto; date.today() decide el mes por
+    # defecto de la grilla, la ventana de alertas y el año de servicio, así
+    # que necesita la zona horaria de la congregación, no la de Greenwich.
+    environment:
+      TZ: ${TZ:-America/Santiago}
     restart: unless-stopped

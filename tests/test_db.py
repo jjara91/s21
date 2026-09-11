@@ -7,6 +7,18 @@ from sqlmodel import Session, select
 from app import db, models
 
 
+def test_crear_engine_fija_un_busy_timeout(tmp_path):
+    """Sin esto, dos escrituras casi simultáneas (doble clic en guardar, o
+    descargar el respaldo mientras alguien guarda) dan "database is locked"
+    de inmediato en vez de esperar a que la otra transacción termine."""
+    engine = db.crear_engine(tmp_path / "s21.db")
+
+    with engine.connect() as conexion:
+        milisegundos = conexion.exec_driver_sql("PRAGMA busy_timeout").scalar()
+
+    assert milisegundos == 30_000
+
+
 def test_aplicar_migraciones_deja_la_version_en_uno(tmp_path):
     engine = db.crear_engine(tmp_path / "s21.db")
     assert db.aplicar_migraciones(engine) == 1

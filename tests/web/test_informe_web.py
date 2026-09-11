@@ -69,3 +69,21 @@ def test_el_informe_con_mes_fuera_de_rango_no_revienta(cliente):
     respuesta = cliente.get("/informe", params={"anio": 2026, "mes": 13})
 
     assert respuesta.status_code == 400
+
+
+def test_el_informe_muestra_sin_cargar_por_separado_de_no_informaron(cliente):
+    """Un mes que nadie ha cargado (los meses futuros del año en curso, en
+    /informe/anual) no debe mostrarse como si toda la congregación hubiera
+    dejado de predicar."""
+    cliente.post("/publicadores", data={"nombre_completo": "Perez Ana"})
+
+    respuesta = cliente.get("/informe", params={"anio": 2026, "mes": 1})
+
+    assert respuesta.status_code == 200
+    assert "Sin cargar" in respuesta.text
+
+
+def test_el_informe_anual_muestra_la_columna_sin_cargar(cliente):
+    respuesta = cliente.get("/informe/anual", params={"anio_servicio": 2026})
+
+    assert "Sin cargar" in respuesta.text

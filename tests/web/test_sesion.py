@@ -39,6 +39,28 @@ def test_con_sesion_la_raiz_responde(cliente):
     assert "Año de servicio" in respuesta.text
 
 
+def test_sin_plantilla_el_inicio_avisa_y_enlaza_a_subirla(cliente):
+    respuesta = cliente.get("/")
+
+    assert respuesta.status_code == 200
+    assert 'href="/plantilla"' in respuesta.text
+
+
+def test_con_plantilla_el_inicio_no_avisa(cliente, tmp_path):
+    from tests.fixtures.sintetico import crear_s21_sintetico
+
+    ruta = crear_s21_sintetico(tmp_path / "para_subir.pdf")
+    cliente.post(
+        "/plantilla",
+        files={"archivo": ("s21.pdf", ruta.read_bytes(), "application/pdf")},
+        follow_redirects=True,
+    )
+
+    respuesta = cliente.get("/")
+
+    assert 'href="/plantilla"' not in respuesta.text
+
+
 def test_salir_cierra_la_sesion(cliente):
     cliente.post("/salir", follow_redirects=False)
 

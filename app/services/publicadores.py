@@ -3,6 +3,7 @@
 import unicodedata
 from datetime import date
 
+from sqlalchemy import or_
 from sqlmodel import Session, select
 
 from app.models import Publicador
@@ -46,6 +47,10 @@ def obtener(sesion: Session, publicador_id: int) -> Publicador:
 
 def actualizar(sesion: Session, publicador_id: int, **campos) -> Publicador:
     publicador = obtener(sesion, publicador_id)
+    # `nombre_normalizado` se deriva siempre de `nombre_completo`: aceptar uno
+    # suelto lo dejaría desincronizado con el nombre real y rompería el
+    # emparejamiento por nombre al importar.
+    campos.pop("nombre_normalizado", None)
     for nombre, valor in campos.items():
         setattr(publicador, nombre, valor)
     if "nombre_completo" in campos:
@@ -70,10 +75,22 @@ def listar(
     grupo_id: int | None = None,
     incluir_bajas: bool = False,
     texto: str | None = None,
+    activos_en: date | None = None,
 ) -> list[Publicador]:
+    """`activos_en` responde "¿seguía activo en esta fecha?": incluye a quien
+    nunca se dio de baja y a quien se dio de baja en o después de esa fecha.
+    Sin esto, dar de baja a alguien a mitad de un período reescribe en
+    silencio los informes y exportaciones de ese período que ya se habían
+    presentado. Se ignora si `incluir_bajas` es True, que ya trae a todos.
+    """
     consulta = select(Publicador)
     if not incluir_bajas:
-        consulta = consulta.where(Publicador.fecha_baja.is_(None))
+        if activos_en is not None:
+            consulta = consulta.where(
+                or_(Publicador.fecha_baja.is_(None), Publicador.fecha_baja >= activos_en)
+            )
+        else:
+            consulta = consulta.where(Publicador.fecha_baja.is_(None))
     if grupo_id is not None:
         consulta = consulta.where(Publicador.grupo_id == grupo_id)
     if texto:

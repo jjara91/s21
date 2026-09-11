@@ -44,13 +44,31 @@ def test_informe_cuenta_solo_a_quienes_informaron(sesion):
     assert resultado.total_cursos == 3
 
 
-def test_un_mes_sin_fila_cuenta_como_no_informado(sesion):
+def test_un_mes_sin_ninguna_fila_cuenta_como_sin_cargar_no_como_no_informado(sesion):
+    """Un mes que nadie ha cargado (típicamente un mes futuro del año en
+    curso) no es lo mismo que un mes cargado donde nadie informó: mezclarlos
+    hace que /informe/anual muestre los meses futuros como si toda la
+    congregación hubiera dejado de predicar."""
     publicadores.crear(sesion, "Sin Fila")
 
     resultado = informe.informe_mensual(sesion, 2026, 1)
 
     assert resultado.total_informaron == 0
+    assert resultado.no_informaron == 0
+    assert resultado.sin_cargar == 1
+
+
+def test_un_publicador_cargado_sin_informar_cuenta_aparte_de_sin_cargar(sesion):
+    cargado = publicadores.crear(sesion, "Cargado Sin Informar")
+    publicadores.crear(sesion, "Sin Cargar")
+    registros.guardar_mes(
+        sesion, 2026, 1, [registros.EntradaMes(publicador_id=cargado.id, participo=False)]
+    )
+
+    resultado = informe.informe_mensual(sesion, 2026, 1)
+
     assert resultado.no_informaron == 1
+    assert resultado.sin_cargar == 1
 
 
 def test_las_bajas_no_entran_en_el_informe(sesion):

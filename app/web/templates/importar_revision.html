@@ -3,9 +3,14 @@
 <h1>Revisar {{ propuestas | length }} archivo(s)</h1>
 <p>Nada se guarda hasta que confirmes al final de la página.</p>
 
+{% if errores %}
+{% for error in errores %}<p class="error">{{ error }}</p>{% endfor %}
+{% endif %}
+
 <form method="post" action="/importar/{{ lote }}">
 {% for propuesta in propuestas %}
 {% set i = loop.index0 %}
+{% set anio_conocido = propuesta.datos.anio_servicio is not none %}
 <section>
   <h2>{{ propuesta.archivo }} — {{ propuesta.datos.nombre }}
       (año {{ propuesta.datos.anio_servicio or 'sin año' }})</h2>
@@ -13,6 +18,20 @@
   {% if propuesta.ya_importado %}
   <p class="error">Este archivo ya se importó el
     {{ propuesta.ya_importado.strftime('%d.%m.%Y %H:%M') }}.</p>
+  {% endif %}
+
+  {% if not anio_conocido %}
+  <p class="error">
+    Esta tarjeta no trae un año de servicio legible
+    {% if propuesta.datos.anio_servicio_crudo %}
+    (dice «{{ propuesta.datos.anio_servicio_crudo }}»)
+    {% endif %}.
+    Escríbelo para poder importar los meses:
+    <label>Año de servicio
+      <input type="number" name="anio_{{ i }}" placeholder="p. ej. 2026">
+    </label>
+    Si lo dejas en blanco, este archivo no se importará.
+  </p>
   {% endif %}
 
   <label>Destino
@@ -55,7 +74,8 @@
         <th>Aux.</th><th>Horas</th><th>Notas</th></tr>
     {% for fila in propuesta.datos.meses %}
     <tr {% if fila.mes in propuesta.meses_en_conflicto %}class="conflicto"{% endif %}>
-      <td><input type="checkbox" name="mes_{{ i }}_{{ fila.mes }}" value="1" checked></td>
+      <td><input type="checkbox" name="mes_{{ i }}_{{ fila.mes }}" value="1"
+                  {% if anio_conocido %}checked{% endif %}></td>
       <td>{{ fila.mes | mes_nombre }}</td>
       <td>{{ 'sí' if fila.participo else '' }}</td>
       <td class="numero">{{ fila.cursos_biblicos if fila.cursos_biblicos is not none else '' }}</td>

@@ -77,7 +77,10 @@ def rellenar(plantilla: bytes, datos: DatosTarjeta) -> bytes:
 
 
 def nombre_archivo(nombre: str, anio_servicio: int) -> str:
-    limpio = re.sub(r"[/\\:]", "-", nombre).strip()
+    # El ZIP se abre normalmente en Windows: además de "/", "\\" y ":", hay
+    # que limpiar los demás caracteres que su sistema de archivos reserva
+    # (* ? " < > |), o la extracción falla o corta el nombre ahí.
+    limpio = re.sub(r'[/\\:*?"<>|]', "-", nombre).strip()
     return f"{limpio} - {anio_servicio}.pdf"
 
 

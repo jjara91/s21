@@ -10,6 +10,7 @@ from app.pdf.plantilla import TarjetaInvalida
 from app.services import importacion, nombramientos
 from app.services import publicadores as servicio_publicadores
 from app.services.importacion import LoteInvalido
+from app.web.errores import DatosInvalidos, anio_valido
 from app.web.plantillas import plantillas
 
 router = APIRouter(prefix="/importar")
@@ -101,6 +102,7 @@ def revisar(
             "propuestas": propuestas,
             "publicadores": servicio_publicadores.listar(sesion),
             "etiquetas": nombramientos.ETIQUETAS,
+            "errores": [],
         },
     )
 
@@ -120,12 +122,40 @@ async def aplicar(
     formulario = await request.form()
     ahora = datetime.now()
 
+    errores = []
+
     for indice, (nombre, contenido) in enumerate(archivos):
         destino = formulario.get(f"destino_{indice}", "omitir")
         if destino == "omitir":
             continue
 
-        propuesta = importacion.analizar(sesion, nombre, contenido)
+        # Si la tarjeta no trae año de servicio, la pantalla de revisión pidió
+        # que se escribiera aquí. Sin año no hay a qué mes calendario asignar
+        # las filas, así que este archivo no se puede importar todavía: se
+        # avisa y se salta, en vez de crear el publicador e ignorar en
+        # silencio los doce meses (que es lo que hacía antes).
+        anio_crudo = (formulario.get(f"anio_{indice}") or "").strip()
+        anio_manual = None
+        if anio_crudo:
+            try:
+                anio_manual = anio_valido(int(anio_crudo))
+            except ValueError:
+                errores.append(f"{nombre}: el año de servicio debe ser un número.")
+                continue
+            except DatosInvalidos as problema:
+                errores.append(f"{nombre}: {problema.mensaje}")
+                continue
+
+        propuesta = importacion.analizar(
+            sesion, nombre, contenido, anio_servicio_manual=anio_manual
+        )
+        if propuesta.datos.anio_servicio is None:
+            errores.append(
+                f"{nombre}: no se importó porque no trae año de servicio y no "
+                "se escribió uno."
+            )
+            continue
+
         aceptados = [
             propuesto
             for propuesto in propuesta.nombramientos
@@ -158,6 +188,27 @@ async def aplicar(
             },
         )
         importacion.aplicar(sesion, decision, lote=lote, ahora=ahora)
+
+    if errores:
+        # El lote no se borra: algún archivo se saltó por falta de año y sus
+        # datos siguen solo aquí. Borrarlo dejaría al usuario sin forma de
+        # completarlo salvo resubir el mismo PDF, que el sha256 marcaría como
+        # "ya importado" sin que en realidad se hubiera importado nada de él.
+        return plantillas.TemplateResponse(
+            request,
+            "importar_revision.html",
+            {
+                "lote": lote,
+                "propuestas": [
+                    importacion.analizar(sesion, nombre, contenido)
+                    for nombre, contenido in archivos
+                ],
+                "publicadores": servicio_publicadores.listar(sesion),
+                "etiquetas": nombramientos.ETIQUETAS,
+                "errores": errores,
+            },
+            status_code=400,
+        )
 
     importacion.borrar_lote(lote)
     return RedirectResponse("/importar", status_code=303)

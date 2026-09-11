@@ -12,19 +12,10 @@ from app.config import cargar_config
 from app.db import obtener_sesion
 from app.dominio import anio_servicio_de
 from app.services import alertas, informe
-from app.web.errores import DatosInvalidos, anio_de_servicio
+from app.web.errores import anio_valido, mes_valido
 from app.web.plantillas import plantillas
 
 router = APIRouter()
-
-
-def _mes_valido(mes: int) -> int:
-    # `mes | mes_nombre` en la plantilla busca la clave en un diccionario de
-    # 1 a 12: sin este control, un mes fuera de rango en la URL no cae en un
-    # error de negocio legible sino en un KeyError sin capturar.
-    if not 1 <= mes <= 12:
-        raise DatosInvalidos(f"El mes {mes} no es válido. Debe estar entre 1 y 12.")
-    return mes
 
 
 @router.get("/informe")
@@ -36,8 +27,8 @@ def mensual(
     _usuario: str = Depends(requerir_sesion),
 ):
     hoy = date.today()
-    anio = anio_de_servicio(anio) if anio is not None else hoy.year
-    mes = _mes_valido(mes) if mes is not None else hoy.month
+    anio = anio_valido(anio) if anio is not None else hoy.year
+    mes = mes_valido(mes) if mes is not None else hoy.month
     return plantillas.TemplateResponse(
         request,
         "informe.html",
@@ -54,7 +45,7 @@ def anual(
 ):
     hoy = date.today()
     anio_servicio = (
-        anio_de_servicio(anio_servicio)
+        anio_valido(anio_servicio)
         if anio_servicio is not None
         else anio_servicio_de(hoy.year, hoy.month)
     )

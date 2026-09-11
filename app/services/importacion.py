@@ -70,8 +70,21 @@ def _anio_calendario(anio_servicio: int, mes: int) -> int:
     return anio_servicio - 1 if mes >= 9 else anio_servicio
 
 
-def analizar(sesion: Session, archivo: str, contenido: bytes) -> Propuesta:
+def analizar(
+    sesion: Session,
+    archivo: str,
+    contenido: bytes,
+    *,
+    anio_servicio_manual: int | None = None,
+) -> Propuesta:
+    """`anio_servicio_manual` es lo que el usuario escribió a mano en la
+    pantalla de revisión cuando la tarjeta no traía año de servicio legible.
+    Solo se usa si la tarjeta de verdad no trae año: nunca pisa uno que sí
+    venga en el PDF.
+    """
     datos = leer_tarjeta(contenido)
+    if datos.anio_servicio is None and anio_servicio_manual is not None:
+        datos.anio_servicio = anio_servicio_manual
     sha = hashlib.sha256(contenido).hexdigest()
 
     previa = sesion.exec(

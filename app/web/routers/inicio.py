@@ -7,6 +7,7 @@ from app.auth import requerir_sesion
 from app.db import obtener_sesion
 from app.dominio import anio_servicio_de
 from app.services import alertas
+from app.services import tarjetas as servicio_tarjetas
 from app.web.plantillas import plantillas
 
 router = APIRouter()
@@ -26,5 +27,6 @@ def inicio(
             "anio_servicio": anio_servicio_de(hoy.year, hoy.month),
             "hoy": hoy,
             "alertas": alertas.calcular(sesion, hoy),
+            "hay_plantilla": servicio_tarjetas.hay_plantilla(),
         },
     )
