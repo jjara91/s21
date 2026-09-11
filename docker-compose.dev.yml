@@ -1,0 +1,17 @@
+# Sobrecapa de desarrollo: el contenedor lee el código del repo en vez del que
+# quedó horneado en la imagen, y uvicorn recarga al guardar. Evita reconstruir
+# por cada cambio de código —no por cambios de dependencias, que siguen
+# exigiendo `--build` porque `pip install .` corre en la imagen.
+#
+# No se aplica sola a propósito: si se llamara docker-compose.override.yml,
+# docker la cargaría también en el servidor al clonar el repo y la instalación
+# real quedaría sirviendo un directorio montado. Se invoca a mano:
+#
+#   docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d
+services:
+  s21:
+    volumes:
+      - "./data:/data"
+      - "./app:/app/app"
+      - "./migrations:/app/migrations"
+    command: ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]

@@ -23,10 +23,32 @@ def _tarjeta(ruta, valores: dict[str, str]) -> bytes:
         ("14/03/1985", date(1985, 3, 14)),
         ("1985-03-14", date(1985, 3, 14)),
         ("  07.06.2002 ", date(2002, 6, 7)),
+        # con guiones, que es como vienen las tarjetas rellenadas a mano
+        ("14-03-1985", date(1985, 3, 14)),
+        # año de dos dígitos, los dos casos reales de una tarjeta importada
+        ("02-01-97", date(1997, 1, 2)),
+        ("28-10-17", date(2017, 10, 28)),
+        ("14/03/85", date(1985, 3, 14)),
+        ("14.03.85", date(1985, 3, 14)),
     ],
 )
-def test_parsear_fecha_acepta_los_tres_formatos(texto, esperado):
+def test_parsear_fecha_acepta_los_formatos_de_la_tarjeta(texto, esperado):
     assert importar.parsear_fecha(texto) == (esperado, None)
+
+
+def test_un_anio_de_dos_digitos_nunca_cae_en_el_futuro():
+    # nacimiento y bautismo siempre ya ocurrieron: si el pivote de strptime
+    # (00-68 -> 2000-2068) deja la fecha adelante, es del siglo pasado
+    futuro = date(date.today().year + 2, 6, 15)
+    fecha, crudo = importar.parsear_fecha(futuro.strftime("%d-%m-%y"))
+
+    assert crudo is None
+    assert fecha == futuro.replace(year=futuro.year - 100)
+
+
+def test_un_anio_de_cuatro_digitos_se_respeta_aunque_sea_futuro():
+    # solo se corrige la ambigüedad de dos dígitos; 2049 escrito entero es 2049
+    assert importar.parsear_fecha("15.06.2049") == (date(2049, 6, 15), None)
 
 
 @pytest.mark.parametrize("texto", ["", None, "   "])

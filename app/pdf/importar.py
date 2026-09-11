@@ -6,7 +6,29 @@ from app.dominio import DatosTarjeta, FilaMes
 from app.pdf import campos
 from app.pdf.plantilla import TarjetaInvalida, leer_campos, validar_es_s21
 
-FORMATOS_FECHA = ("%d.%m.%Y", "%d/%m/%Y", "%Y-%m-%d")
+# Los de cuatro dígitos van primero para que ninguno de dos dígitos se quede
+# con un año largo a medias. Las tarjetas rellenadas a mano usan cualquiera de
+# los tres separadores y abrevian el año tanto como no.
+FORMATOS_FECHA = (
+    "%d.%m.%Y",
+    "%d/%m/%Y",
+    "%d-%m-%Y",
+    "%Y-%m-%d",
+    "%d.%m.%y",
+    "%d/%m/%y",
+    "%d-%m-%y",
+)
+
+
+def _sin_futuro(fecha: date) -> date:
+    """Corrige el siglo de un año abreviado que quedó por delante de hoy.
+
+    strptime resuelve "%y" con el pivote de POSIX: 00-68 son 2000-2068. Las dos
+    fechas de la tarjeta —nacimiento y bautismo— ya ocurrieron, así que un "30"
+    es 1930 y no 2030. El año corregido nunca cae en un año secular, de modo que
+    un 29 de febrero sigue existiendo cien años antes.
+    """
+    return fecha.replace(year=fecha.year - 100) if fecha > date.today() else fecha
 
 
 def parsear_fecha(texto: str | None) -> tuple[date | None, str | None]:
@@ -16,9 +38,10 @@ def parsear_fecha(texto: str | None) -> tuple[date | None, str | None]:
         return None, None
     for formato in FORMATOS_FECHA:
         try:
-            return datetime.strptime(limpio, formato).date(), None
+            fecha = datetime.strptime(limpio, formato).date()
         except ValueError:
             continue
+        return (_sin_futuro(fecha) if formato.endswith("%y") else fecha), None
     return None, limpio
 
 
