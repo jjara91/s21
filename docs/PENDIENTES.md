@@ -39,8 +39,8 @@ un publicador borrado se limpian de las filas que lo referenciaban.
   confirmarlo después, la pantalla redirige en silencio en vez de explicar que ya
   no existe.
 
-## Verificación que ningún agente pudo hacer
+## Verificado a mano (11-09-2026)
 
-Abrir en un visor de PDF las dos variantes de tarjeta exportada —editable y de
-solo lectura— y confirmar a ojo que se ven bien. Se verificó renderizando con
-una librería, pero no en el visor que se usará a diario.
+Las dos variantes de tarjeta exportada —editable y de solo lectura— se abrieron
+en Vista Previa de macOS y se ven bien. La importación de una tarjeta real
+guardada por Vista Previa entra completa, fechas incluidas.
