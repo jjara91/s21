@@ -81,6 +81,35 @@ def test_las_bajas_no_entran_en_el_informe(sesion):
     assert resultado.no_informaron == 0
 
 
+def test_el_informe_del_mes_de_la_baja_no_pierde_a_quien_informo_antes_de_irse(sesion):
+    """Regresión: el informe de enero (arreglado) seguía contando bien a
+    quien se fue después, pero el informe del MES en que ocurre la baja
+    comparaba contra el último día del mes y perdía a quien informó y se
+    dio de baja a mitad de ese mismo mes."""
+    ana = publicadores.crear(sesion, "Perez Ana")
+    registros.guardar_mes(
+        sesion,
+        2026,
+        1,
+        [registros.EntradaMes(publicador_id=ana.id, participo=True, cursos_biblicos=2)],
+    )
+    registros.guardar_mes(
+        sesion,
+        2026,
+        3,
+        [registros.EntradaMes(publicador_id=ana.id, participo=True, cursos_biblicos=2)],
+    )
+    publicadores.dar_de_baja(sesion, ana.id, date(2026, 3, 15), "mudada")
+
+    enero = informe.informe_mensual(sesion, 2026, 1)
+    marzo = informe.informe_mensual(sesion, 2026, 3)
+
+    assert enero.total_informaron == 1
+    assert enero.total_cursos == 2
+    assert marzo.total_informaron == 1
+    assert marzo.total_cursos == 2
+
+
 def test_la_fila_de_publicadores_no_lleva_horas(sesion):
     ana = publicadores.crear(sesion, "Perez Ana")
     registros.guardar_mes(

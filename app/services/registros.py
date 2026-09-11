@@ -1,6 +1,5 @@
 """Carga de los informes mensuales y armado de la tarjeta de un año."""
 
-from calendar import monthrange
 from dataclasses import dataclass
 from datetime import date
 
@@ -87,11 +86,14 @@ def filas_del_mes(
 
     Incluye a quien se dio de baja durante este mes o después: un informe de
     un mes pasado no debe cambiar porque alguien se dé de baja más adelante.
+    `activos_en` responde "¿estuvo activo en algún momento de este período?",
+    y eso se compara contra el INICIO del mes, no el final: comparar contra
+    el final excluiría a quien informó y se dio de baja a mitad del mes que
+    se está consultando, que es justo a quien hay que seguir contando.
     """
-    ultimo_dia = monthrange(anio, mes)[1]
     filas = []
     for publicador in publicadores.listar(
-        sesion, grupo_id=grupo_id, activos_en=date(anio, mes, ultimo_dia)
+        sesion, grupo_id=grupo_id, activos_en=date(anio, mes, 1)
     ):
         registro = _registro(sesion, publicador.id, anio, mes)
         con_horas = _puede_tener_horas(

@@ -87,6 +87,23 @@ def test_filas_del_mes_excluye_a_quien_ya_se_habia_dado_de_baja_antes(sesion):
     assert registros.filas_del_mes(sesion, 2026, 1) == []
 
 
+def test_filas_del_mes_incluye_a_quien_se_dio_de_baja_a_mitad_de_ese_mismo_mes(sesion):
+    """Regresión: comparar `fecha_baja` contra el ÚLTIMO día del mes (en vez
+    del primero) excluía a quien informó y se dio de baja a mitad del propio
+    mes que se está consultando -justo a quien hay que seguir contando-,
+    aunque `exportar_lote` ya usara el criterio correcto (inicio de período)
+    para el mismo problema."""
+    ana = _ana(sesion)
+
+    from app.services import publicadores
+
+    publicadores.dar_de_baja(sesion, ana.id, date(2026, 3, 15), "mudada")
+
+    filas_marzo = registros.filas_del_mes(sesion, 2026, 3)
+
+    assert [p.id for p, _r, _h in filas_marzo] == [ana.id]
+
+
 def test_filas_del_mes_incluye_a_quien_no_tiene_registro(sesion):
     ana = _ana(sesion)
 
