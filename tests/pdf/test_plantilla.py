@@ -2,6 +2,7 @@ import pytest
 from pypdf import PdfReader, PdfWriter
 
 from app.pdf import campos, plantilla
+from tests.fixtures import sintetico
 from io import BytesIO
 
 
@@ -56,3 +57,19 @@ def test_crear_plantilla_conserva_los_75_campos(plantilla_sintetica):
     vacio = plantilla.crear_plantilla(_con_valores(plantilla_sintetica))
     presentes = set(PdfReader(BytesIO(vacio)).get_fields() or {})
     assert presentes == set(campos.TODOS_LOS_CAMPOS)
+
+
+def test_validar_acepta_una_tarjeta_guardada_por_vista_previa(plantilla_sintetica):
+    # Vista Previa deja /AcroForm/Fields con un solo campo; los 75 widgets siguen
+    # en la página y la tarjeta tiene que seguir siendo válida.
+    roto = sintetico.romper_fields(_con_valores(plantilla_sintetica))
+    plantilla.validar_es_s21(roto)  # no lanza
+
+
+def test_crear_plantilla_repara_el_indice_de_campos(plantilla_sintetica):
+    # una tarjeta guardada por Vista Previa trae /AcroForm/Fields con un campo:
+    # la plantilla no puede heredar ese índice roto o el PDF exportado sería
+    # ilegible para otros lectores
+    roto = sintetico.romper_fields(_con_valores(plantilla_sintetica))
+    vacio = plantilla.crear_plantilla(roto)
+    assert set(PdfReader(BytesIO(vacio)).get_fields() or {}) == set(campos.TODOS_LOS_CAMPOS)

@@ -5,6 +5,7 @@ import pytest
 from pypdf import PdfWriter
 
 from app.pdf import campos, importar
+from tests.fixtures import sintetico
 
 
 def _tarjeta(ruta, valores: dict[str, str]) -> bytes:
@@ -136,3 +137,20 @@ def test_rechaza_un_pdf_que_no_es_s21():
     escritor.write(buffer)
     with pytest.raises(importar.TarjetaInvalida):
         importar.leer_tarjeta(buffer.getvalue())
+
+
+def test_lee_una_tarjeta_guardada_por_vista_previa(plantilla_sintetica):
+    # /AcroForm/Fields mutilado por Quartz: los valores viven en los widgets
+    lleno = _tarjeta(
+        plantilla_sintetica,
+        {
+            campos.CABECERA_TEXTO["nombre"]: "Fuentes Pavés Bárbara",
+            campos.CABECERA_NOMBRAMIENTOS["precursor_regular"]: campos.MARCADA,
+            campos.campo_fila("horas", 9): "50",
+        },
+    )
+    datos = importar.leer_tarjeta(sintetico.romper_fields(lleno))
+
+    assert datos.nombre == "Fuentes Pavés Bárbara"
+    assert "precursor_regular" in datos.nombramientos
+    assert next(fila for fila in datos.meses if fila.mes == 9).horas == 50

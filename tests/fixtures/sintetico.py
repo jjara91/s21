@@ -32,3 +32,24 @@ def crear_s21_sintetico(destino: Path) -> Path:
     lienzo.showPage()
     lienzo.save()
     return destino
+
+
+def romper_fields(contenido: bytes) -> bytes:
+    """Deja /AcroForm/Fields con una sola entrada, sin tocar los widgets.
+
+    Reproduce lo que hace Vista Previa de macOS (Quartz PDFContext) al guardar
+    una tarjeta rellenada: el formulario sigue completo en las anotaciones de la
+    página, pero el índice del documento solo apunta a un campo.
+    """
+    from io import BytesIO
+
+    from pypdf import PdfWriter
+    from pypdf.generic import ArrayObject, NameObject
+
+    escritor = PdfWriter(clone_from=BytesIO(contenido))
+    formulario = escritor._root_object["/AcroForm"].get_object()
+    formulario[NameObject("/Fields")] = ArrayObject(list(formulario["/Fields"])[:1])
+
+    salida = BytesIO()
+    escritor.write(salida)
+    return salida.getvalue()

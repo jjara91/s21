@@ -1,13 +1,10 @@
 """Lectura de una tarjeta S-21 a objetos de dominio. No toca la base de datos."""
 
 from datetime import date, datetime
-from io import BytesIO
-
-from pypdf import PdfReader
 
 from app.dominio import DatosTarjeta, FilaMes
 from app.pdf import campos
-from app.pdf.plantilla import TarjetaInvalida, validar_es_s21
+from app.pdf.plantilla import TarjetaInvalida, leer_campos, validar_es_s21
 
 FORMATOS_FECHA = ("%d.%m.%Y", "%d/%m/%Y", "%Y-%m-%d")
 
@@ -37,9 +34,7 @@ def _entero(texto: str | None) -> tuple[int | None, str | None]:
 
 
 def _valores(contenido: bytes) -> dict[str, str]:
-    lector = PdfReader(BytesIO(contenido))
-    crudos = lector.get_fields() or {}
-    return {nombre: campo.get("/V") for nombre, campo in crudos.items()}
+    return {nombre: campo.get("/V") for nombre, campo in leer_campos(contenido).items()}
 
 
 def _marcada(valores: dict[str, str], nombre: str) -> bool:
