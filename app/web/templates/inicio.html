@@ -1,26 +1,49 @@
 {% extends "base.html" %}
+{% block titulo %}Inicio{% endblock %}
+{% block encabezado %}Inicio{% endblock %}
 {% block contenido %}
-<h1>Año de servicio {{ anio_servicio }}</h1>
+<div class="pila">
+  <div class="flex flex-wrap items-center justify-between gap-3">
+    <h1>Año de servicio {{ anio_servicio }}</h1>
+    <a href="/grilla?anio={{ hoy.year }}&amp;mes={{ hoy.month }}"
+       class="inline-flex items-center gap-2 rounded-lg bg-marca-800 px-3.5 py-2 text-sm
+              font-medium text-white no-underline shadow-sm hover:bg-marca-700 hover:text-white">
+      Cargar {{ hoy.month | mes_nombre }} de {{ hoy.year }}
+    </a>
+  </div>
 
-{% if not hay_plantilla %}
-<p class="error">Todavía no hay una plantilla del formulario S-21: para generar
-  tarjetas hace falta subir una. <a href="/plantilla">Súbela en /plantilla</a>.</p>
-{% endif %}
+  {% if not hay_plantilla %}
+  <div class="aviso aviso-error">
+    <svg viewBox="0 0 24 24" class="h-5 w-5 shrink-0" fill="none" stroke="currentColor"
+         stroke-width="1.7" stroke-linecap="round" aria-hidden="true">
+      <path d="M12 9v4m0 3h.01M10.3 3.9 2.6 17.1a2 2 0 0 0 1.7 3h15.4a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0Z"></path>
+    </svg>
+    <p class="error">Todavía no hay una plantilla del formulario S-21: para generar
+      tarjetas hace falta subir una. <a href="/plantilla">Súbela en /plantilla</a>.</p>
+  </div>
+  {% endif %}
 
-<p><a href="/grilla?anio={{ hoy.year }}&amp;mes={{ hoy.month }}">
-  Cargar {{ hoy.month | mes_nombre }} de {{ hoy.year }}</a></p>
+  <section class="tarjeta">
+    <div class="flex items-center justify-between gap-3">
+      <h2 class="mt-0 mb-0">Alertas ({{ alertas | length }})</h2>
+      {% if alertas %}
+      <a href="/alertas" class="text-sm">Ver todas</a>
+      {% endif %}
+    </div>
 
-<h2>Alertas ({{ alertas | length }})</h2>
-{% if alertas %}
-<ul>
-  {% for alerta in alertas %}
-  <li>
-    <a href="/publicadores/{{ alerta.publicador.id }}">{{ alerta.publicador.nombre_completo }}</a>
-    — {{ alerta.estado }} ({{ alerta.meses_sin_informar | length }} meses sin informar)
-  </li>
-  {% endfor %}
-</ul>
-{% else %}
-<p>Sin publicadores irregulares ni inactivos.</p>
-{% endif %}
+    {% if alertas %}
+    <ul class="mt-4 divide-y divide-stone-100">
+      {% for alerta in alertas %}
+      <li class="flex flex-wrap items-center gap-x-3 gap-y-1 py-2.5 text-sm">
+        <a href="/publicadores/{{ alerta.publicador.id }}" class="font-medium">{{ alerta.publicador.nombre_completo }}</a>
+        <span class="chip chip-alerta">{{ alerta.estado }}</span>
+        <span class="nota">({{ alerta.meses_sin_informar | length }} meses sin informar)</span>
+      </li>
+      {% endfor %}
+    </ul>
+    {% else %}
+    <p class="vacio mt-4">Sin publicadores irregulares ni inactivos.</p>
+    {% endif %}
+  </section>
+</div>
 {% endblock %}

@@ -1,30 +1,48 @@
 {% extends "base.html" %}
+{% block titulo %}Importar tarjetas{% endblock %}
+{% block encabezado %}Importar{% endblock %}
 {% block contenido %}
-<h1>Importar tarjetas</h1>
+<div class="pila">
+  <h1>Importar tarjetas</h1>
 
-{% for error in errores %}<p class="error">{{ error }}</p>{% endfor %}
-
-<form method="post" action="/importar" enctype="multipart/form-data">
-  <input type="file" name="archivos" accept="application/pdf" multiple required>
-  <button type="submit">Subir y revisar</button>
-</form>
-
-<h2>Importaciones anteriores</h2>
-{% if historial %}
-<table>
-  <tr><th>Lote</th><th>Fecha</th><th>Archivos</th><th></th></tr>
-  {% for lote, fecha, cantidad in historial %}
-  <tr>
-    <td>{{ lote }}</td><td>{{ fecha.strftime('%d.%m.%Y %H:%M') }}</td><td>{{ cantidad }}</td>
-    <td>
-      <form method="post" action="/importar/{{ lote }}/deshacer">
-        <button type="submit">Deshacer</button>
-      </form>
-    </td>
-  </tr>
+  {% for error in errores %}
+  <div class="aviso aviso-error"><p class="error">{{ error }}</p></div>
   {% endfor %}
-</table>
-{% else %}
-<p>Todavía no se ha importado nada.</p>
-{% endif %}
+
+  <form method="post" action="/importar" enctype="multipart/form-data" class="tarjeta">
+    <label class="mb-2">Tarjetas S-21 en PDF</label>
+    <input type="file" name="archivos" accept="application/pdf" multiple required>
+    <div class="acciones">
+      <button type="submit" class="btn-primario">Subir y revisar</button>
+      <p class="nota">Puedes seleccionar varios archivos a la vez. Nada se guarda hasta que confirmes.</p>
+    </div>
+  </form>
+
+  <section>
+    <h2>Importaciones anteriores</h2>
+    {% if historial %}
+    <div class="tarjeta">
+      <div class="tabla-scroll">
+        <table>
+          <tr><th>Lote</th><th>Fecha</th><th class="numero">Archivos</th><th></th></tr>
+          {% for lote, fecha, cantidad in historial %}
+          <tr>
+            <td class="font-mono text-xs tenue">{{ lote }}</td>
+            <td class="whitespace-nowrap">{{ fecha.strftime('%d.%m.%Y %H:%M') }}</td>
+            <td class="numero">{{ cantidad }}</td>
+            <td class="text-right">
+              <form method="post" action="/importar/{{ lote }}/deshacer">
+                <button type="submit" class="btn-peligro btn-mini">Deshacer</button>
+              </form>
+            </td>
+          </tr>
+          {% endfor %}
+        </table>
+      </div>
+    </div>
+    {% else %}
+    <p class="vacio">Todavía no se ha importado nada.</p>
+    {% endif %}
+  </section>
+</div>
 {% endblock %}

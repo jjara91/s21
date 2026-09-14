@@ -1,65 +1,78 @@
 {% extends "base.html" %}
+{% block titulo %}Carga mensual{% endblock %}
+{% block encabezado %}Carga mensual{% endblock %}
 {% block contenido %}
-<h1>{{ mes | mes_nombre }} de {{ anio }}</h1>
+<div class="pila">
+  <h1>{{ mes | mes_nombre }} de {{ anio }}</h1>
 
-{% if errores %}
-<div class="error">
-  <p>No se guardó nada. Corrige lo siguiente y vuelve a guardar:</p>
-  <ul>{% for e in errores %}<li>{{ e }}</li>{% endfor %}</ul>
+  {% if errores %}
+  <div class="aviso aviso-error">
+    <svg viewBox="0 0 24 24" class="h-5 w-5 shrink-0" fill="none" stroke="currentColor"
+         stroke-width="1.7" stroke-linecap="round" aria-hidden="true">
+      <path d="M12 9v4m0 3h.01M10.3 3.9 2.6 17.1a2 2 0 0 0 1.7 3h15.4a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0Z"></path>
+    </svg>
+    <div class="error">
+      <p class="font-medium">No se guardó nada. Corrige lo siguiente y vuelve a guardar:</p>
+      <ul class="mt-1 list-disc pl-5">{% for e in errores %}<li>{{ e }}</li>{% endfor %}</ul>
+    </div>
+  </div>
+  {% endif %}
+
+  <form method="get" action="/grilla" class="tarjeta fila-campos">
+    <label>Mes
+      <select name="mes">
+        {% for m in [1,2,3,4,5,6,7,8,9,10,11,12] %}
+        <option value="{{ m }}" {% if m == mes %}selected{% endif %}>{{ m | mes_nombre }}</option>
+        {% endfor %}
+      </select></label>
+    <label>Año <input type="number" name="anio" value="{{ anio }}"></label>
+    <label>Grupo
+      <select name="grupo_id">
+        <option value="">Todos</option>
+        {% for grupo in grupos %}
+        <option value="{{ grupo.id }}" {% if grupo.id == grupo_id %}selected{% endif %}>{{ grupo.nombre }}</option>
+        {% endfor %}
+      </select></label>
+    <button type="submit">Ver</button>
+  </form>
+
+  <form method="post" action="/grilla" class="tarjeta">
+    <input type="hidden" name="anio" value="{{ anio }}">
+    <input type="hidden" name="mes" value="{{ mes }}">
+    {% if grupo_id %}<input type="hidden" name="grupo_id" value="{{ grupo_id }}">{% endif %}
+
+    <div class="tabla-scroll">
+      <table>
+        <tr>
+          <th>Publicador</th><th class="text-center">Participó</th><th class="text-center">Cursos</th>
+          <th class="text-center">Prec. auxiliar</th><th class="text-center">Horas</th><th>Notas</th>
+        </tr>
+        {% for publicador, registro, horas_habilitadas in filas %}
+        <tr>
+          <td class="font-medium whitespace-nowrap">
+            <input type="hidden" name="publicadores" value="{{ publicador.id }}">
+            <a href="/publicadores/{{ publicador.id }}">{{ publicador.nombre_completo }}</a>
+          </td>
+          <td class="text-center"><input type="checkbox" name="participo_{{ publicador.id }}" value="1"
+                {% if registro and registro.participo %}checked{% endif %}></td>
+          <td class="text-center"><input type="number" min="0" name="cursos_{{ publicador.id }}" value="{{ registro.cursos_biblicos if registro and registro.cursos_biblicos is not none else '' }}" class="mt-0 mx-auto w-20 text-right"></td>
+          <td class="text-center"><input type="checkbox" name="auxiliar_{{ publicador.id }}" value="1"
+                {% if registro and registro.precursor_auxiliar %}checked{% endif %}></td>
+          <td class="text-center"><input type="number" min="0" name="horas_{{ publicador.id }}" value="{{ registro.horas if registro and registro.horas is not none else '' }}" class="mt-0 mx-auto w-20 text-right"
+                {% if not horas_habilitadas %}disabled{% endif %}></td>
+          <td><input name="notas_{{ publicador.id }}" value="{{ registro.notas or '' if registro else '' }}" class="mt-0 min-w-48"></td>
+        </tr>
+        {% else %}
+        <tr><td colspan="6" class="py-8 text-center tenue">No hay publicadores que mostrar.</td></tr>
+        {% endfor %}
+      </table>
+    </div>
+
+    <div class="acciones">
+      <button type="submit" class="btn-primario">Guardar mes</button>
+      <p class="nota">Las horas se habilitan al guardar el mes si marcas precursor auxiliar, o si el
+      publicador tiene un nombramiento de precursor o misionero vigente.</p>
+    </div>
+  </form>
 </div>
-{% endif %}
-
-<form method="get" action="/grilla">
-  <label>Mes
-    <select name="mes">
-      {% for m in [1,2,3,4,5,6,7,8,9,10,11,12] %}
-      <option value="{{ m }}" {% if m == mes %}selected{% endif %}>{{ m | mes_nombre }}</option>
-      {% endfor %}
-    </select></label>
-  <label>Año <input type="number" name="anio" value="{{ anio }}"></label>
-  <label>Grupo
-    <select name="grupo_id">
-      <option value="">Todos</option>
-      {% for grupo in grupos %}
-      <option value="{{ grupo.id }}" {% if grupo.id == grupo_id %}selected{% endif %}>{{ grupo.nombre }}</option>
-      {% endfor %}
-    </select></label>
-  <button type="submit">Ver</button>
-</form>
-
-<form method="post" action="/grilla">
-  <input type="hidden" name="anio" value="{{ anio }}">
-  <input type="hidden" name="mes" value="{{ mes }}">
-  {% if grupo_id %}<input type="hidden" name="grupo_id" value="{{ grupo_id }}">{% endif %}
-
-  <table>
-    <tr>
-      <th>Publicador</th><th>Participó</th><th>Cursos</th>
-      <th>Prec. auxiliar</th><th>Horas</th><th>Notas</th>
-    </tr>
-    {% for publicador, registro, horas_habilitadas in filas %}
-    <tr>
-      <td>
-        <input type="hidden" name="publicadores" value="{{ publicador.id }}">
-        <a href="/publicadores/{{ publicador.id }}">{{ publicador.nombre_completo }}</a>
-      </td>
-      <td><input type="checkbox" name="participo_{{ publicador.id }}" value="1"
-            {% if registro and registro.participo %}checked{% endif %}></td>
-      <td><input type="number" min="0" name="cursos_{{ publicador.id }}" value="{{ registro.cursos_biblicos if registro and registro.cursos_biblicos is not none else '' }}"></td>
-      <td><input type="checkbox" name="auxiliar_{{ publicador.id }}" value="1"
-            {% if registro and registro.precursor_auxiliar %}checked{% endif %}></td>
-      <td><input type="number" min="0" name="horas_{{ publicador.id }}" value="{{ registro.horas if registro and registro.horas is not none else '' }}"
-            {% if not horas_habilitadas %}disabled{% endif %}></td>
-      <td><input name="notas_{{ publicador.id }}" value="{{ registro.notas or '' if registro else '' }}"></td>
-    </tr>
-    {% else %}
-    <tr><td colspan="6">No hay publicadores que mostrar.</td></tr>
-    {% endfor %}
-  </table>
-
-  <button type="submit">Guardar mes</button>
-</form>
-
-<p>Las horas se habilitan al guardar el mes si marcas precursor auxiliar, o si el
-publicador tiene un nombramiento de precursor o misionero vigente.</p>
 {% endblock %}

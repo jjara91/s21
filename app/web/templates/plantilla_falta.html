@@ -1,19 +1,30 @@
 {% extends "base.html" %}
+{% block titulo %}Plantilla del formulario S-21{% endblock %}
+{% block encabezado %}Plantilla{% endblock %}
 {% block contenido %}
-<h1>Plantilla del formulario S-21</h1>
+<div class="mx-auto w-full max-w-2xl pila">
+  <h1>Plantilla del formulario S-21</h1>
 
-{% if hay_plantilla %}
-<p>Ya hay una plantilla guardada. Puedes reemplazarla subiendo otra tarjeta.</p>
-{% else %}
-<p>Para generar tarjetas hace falta el formulario oficial. Sube cualquier tarjeta
-S-21 rellenable, llena o vacía: la aplicación le borra los datos y guarda solo el
-formulario en blanco.</p>
-{% endif %}
+  {% if hay_plantilla %}
+  <div class="aviso aviso-ok">
+    <p>Ya hay una plantilla guardada. Puedes reemplazarla subiendo otra tarjeta.</p>
+  </div>
+  {% else %}
+  <div class="aviso aviso-info">
+    <p>Para generar tarjetas hace falta el formulario oficial. Sube cualquier tarjeta
+    S-21 rellenable, llena o vacía: la aplicación le borra los datos y guarda solo el
+    formulario en blanco.</p>
+  </div>
+  {% endif %}
 
-{% if error %}<p class="error">{{ error }}</p>{% endif %}
+  {% if error %}<p class="error">{{ error }}</p>{% endif %}
 
-<form method="post" action="/plantilla" enctype="multipart/form-data">
-  <input type="file" name="archivo" accept="application/pdf" required>
-  <button type="submit">Guardar plantilla</button>
-</form>
+  <form method="post" action="/plantilla" enctype="multipart/form-data" class="tarjeta">
+    <label class="mb-2">Archivo PDF</label>
+    <input type="file" name="archivo" accept="application/pdf" required>
+    <div class="acciones">
+      <button type="submit" class="btn-primario">Guardar plantilla</button>
+    </div>
+  </form>
+</div>
 {% endblock %}

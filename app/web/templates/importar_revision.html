@@ -1,47 +1,63 @@
 {% extends "base.html" %}
+{% block titulo %}Revisar importación{% endblock %}
+{% block encabezado %}Importar · revisión{% endblock %}
 {% block contenido %}
-<h1>Revisar {{ propuestas | length }} archivo(s)</h1>
-<p>Nada se guarda hasta que confirmes al final de la página.</p>
+<div class="pila">
+  <div>
+    <h1>Revisar {{ propuestas | length }} archivo(s)</h1>
+    <p class="nota mt-1">Nada se guarda hasta que confirmes al final de la página.</p>
+  </div>
 
-{% if errores %}
-{% for error in errores %}<p class="error">{{ error }}</p>{% endfor %}
-{% endif %}
+  {% if errores %}
+  {% for error in errores %}
+  <div class="aviso aviso-error"><p class="error">{{ error }}</p></div>
+  {% endfor %}
+  {% endif %}
 
-<form method="post" action="/importar/{{ lote }}">
+<form method="post" action="/importar/{{ lote }}" class="pila">
 {% for propuesta in propuestas %}
 {% set i = loop.index0 %}
 {% set anio_conocido = propuesta.datos.anio_servicio is not none %}
-<section>
-  <h2>{{ propuesta.archivo }} — {{ propuesta.datos.nombre }}
-      (año {{ propuesta.datos.anio_servicio or 'sin año' }})</h2>
+<section class="tarjeta">
+  <h2 class="mt-0 flex flex-wrap items-baseline gap-x-2">
+    <span class="font-mono text-xs tenue">{{ propuesta.archivo }}</span>
+    <span>— {{ propuesta.datos.nombre }}</span>
+    <span class="nota">(año {{ propuesta.datos.anio_servicio or 'sin año' }})</span>
+  </h2>
 
   {% if i in aplicados %}
-  <p><strong>Este archivo ya se guardó al confirmar este mismo formulario.</strong>
-    Los demás mensajes de esta página son de otros archivos del lote; este
-    no hace falta volver a enviarlo.</p>
+  <div class="aviso aviso-ok mt-3">
+    <p><strong>Este archivo ya se guardó al confirmar este mismo formulario.</strong>
+      Los demás mensajes de esta página son de otros archivos del lote; este
+      no hace falta volver a enviarlo.</p>
+  </div>
   {% endif %}
 
   {% if propuesta.ya_importado %}
-  <p class="error">Este archivo ya se importó el
-    {{ propuesta.ya_importado.strftime('%d.%m.%Y %H:%M') }}.</p>
+  <div class="aviso aviso-error mt-3">
+    <p class="error">Este archivo ya se importó el
+      {{ propuesta.ya_importado.strftime('%d.%m.%Y %H:%M') }}.</p>
+  </div>
   {% endif %}
 
   {% if not anio_conocido %}
-  <p class="error">
-    Esta tarjeta no trae un año de servicio legible
-    {% if propuesta.datos.anio_servicio_crudo %}
-    (dice «{{ propuesta.datos.anio_servicio_crudo }}»)
-    {% endif %}.
-    Escríbelo para poder importar los meses:
-    <label>Año de servicio
-      <input type="number" name="anio_{{ i }}" placeholder="p. ej. 2026"
-             value="{{ anios_escritos.get(i, '') }}">
-    </label>
-    Si lo dejas en blanco, este archivo no se importará.
-  </p>
+  <div class="aviso aviso-error mt-3">
+    <p class="error">
+      Esta tarjeta no trae un año de servicio legible
+      {% if propuesta.datos.anio_servicio_crudo %}
+      (dice «{{ propuesta.datos.anio_servicio_crudo }}»)
+      {% endif %}.
+      Escríbelo para poder importar los meses:
+      <label class="mt-2">Año de servicio
+        <input type="number" name="anio_{{ i }}" placeholder="p. ej. 2026"
+               value="{{ anios_escritos.get(i, '') }}">
+      </label>
+      Si lo dejas en blanco, este archivo no se importará.
+    </p>
+  </div>
   {% endif %}
 
-  <label>Destino
+  <label class="mt-4">Destino
     <select name="destino_{{ i }}">
       <option value="nuevo" {% if not propuesta.publicador_id %}selected{% endif %}>Crear nuevo</option>
       {% for p in publicadores %}
@@ -53,57 +69,67 @@
 
   {% if propuesta.diferencias %}
   <h3>Datos que cambian</h3>
-  <table>
-    <tr><th>Aceptar</th><th>Campo</th><th>En la base</th><th>En la tarjeta</th></tr>
-    {% for d in propuesta.diferencias %}
-    <tr>
-      <td><input type="checkbox" name="campo_{{ i }}_{{ d.campo }}" value="1" checked></td>
-      <td>{{ d.etiqueta }}</td><td>{{ d.valor_actual or '—' }}</td><td>{{ d.valor_tarjeta }}</td>
-    </tr>
-    {% endfor %}
-  </table>
+  <div class="tabla-scroll rounded-lg border border-stone-200">
+    <table>
+      <tr><th class="text-center">Aceptar</th><th>Campo</th><th>En la base</th><th>En la tarjeta</th></tr>
+      {% for d in propuesta.diferencias %}
+      <tr>
+        <td class="text-center"><input type="checkbox" name="campo_{{ i }}_{{ d.campo }}" value="1" checked></td>
+        <td class="font-medium">{{ d.etiqueta }}</td><td class="tenue">{{ d.valor_actual or '—' }}</td><td>{{ d.valor_tarjeta }}</td>
+      </tr>
+      {% endfor %}
+    </table>
+  </div>
   {% endif %}
 
   {% if propuesta.nombramientos %}
   <h3>Nombramientos propuestos</h3>
+  <div class="flex flex-col gap-2">
   {% for n in propuesta.nombramientos %}
-  <label>
+  <label class="flex flex-wrap items-center gap-2 font-normal text-stone-700">
     <input type="checkbox" name="nombramiento_{{ i }}_{{ n.tipo }}" value="1" checked>
     {{ etiquetas[n.tipo] }} desde
-    <input type="date" name="desde_{{ i }}_{{ n.tipo }}" value="{{ n.desde }}">
+    <input type="date" name="desde_{{ i }}_{{ n.tipo }}" value="{{ n.desde }}" class="mt-0">
   </label>
   {% endfor %}
+  </div>
   {% endif %}
 
   <h3>Meses</h3>
-  <table>
-    <tr><th>Importar</th><th>Mes</th><th>Participó</th><th>Cursos</th>
-        <th>Aux.</th><th>Horas</th><th>Notas</th></tr>
-    {% for fila in propuesta.datos.meses %}
-    <tr {% if fila.mes in propuesta.meses_en_conflicto %}class="conflicto"{% endif %}>
-      <td><input type="checkbox" name="mes_{{ i }}_{{ fila.mes }}" value="1"
-                  {% if anio_conocido %}checked{% endif %}></td>
-      <td>{{ fila.mes | mes_nombre }}</td>
-      <td>{{ 'sí' if fila.participo else '' }}</td>
-      <td class="numero">{{ fila.cursos_biblicos if fila.cursos_biblicos is not none else '' }}</td>
-      <td>{{ 'sí' if fila.precursor_auxiliar else '' }}</td>
-      <td class="numero">{{ fila.horas if fila.horas is not none else '' }}</td>
-      <td>{{ fila.notas or '' }}</td>
-    </tr>
-    {% endfor %}
-  </table>
+  <div class="tabla-scroll rounded-lg border border-stone-200">
+    <table>
+      <tr><th class="text-center">Importar</th><th>Mes</th><th class="text-center">Participó</th><th class="numero">Cursos</th>
+          <th class="text-center">Aux.</th><th class="numero">Horas</th><th>Notas</th></tr>
+      {% for fila in propuesta.datos.meses %}
+      <tr {% if fila.mes in propuesta.meses_en_conflicto %}class="conflicto"{% endif %}>
+        <td class="text-center"><input type="checkbox" name="mes_{{ i }}_{{ fila.mes }}" value="1"
+                    {% if anio_conocido %}checked{% endif %}></td>
+        <td class="font-medium whitespace-nowrap">{{ fila.mes | mes_nombre }}</td>
+        <td class="text-center">{{ 'sí' if fila.participo else '' }}</td>
+        <td class="numero">{{ fila.cursos_biblicos if fila.cursos_biblicos is not none else '' }}</td>
+        <td class="text-center">{{ 'sí' if fila.precursor_auxiliar else '' }}</td>
+        <td class="numero">{{ fila.horas if fila.horas is not none else '' }}</td>
+        <td class="tenue">{{ fila.notas or '' }}</td>
+      </tr>
+      {% endfor %}
+    </table>
+  </div>
   {% if propuesta.meses_en_conflicto %}
-  <p class="error">Las filas destacadas pisarían un registro distinto que ya está
+  <p class="error mt-3">Las filas destacadas pisarían un registro distinto que ya está
     guardado. Desmarca las que no quieras reemplazar.</p>
   {% endif %}
 </section>
-<hr>
 {% endfor %}
 
-<button type="submit">Confirmar importación</button>
+  <div class="sticky bottom-0 -mx-4 flex items-center gap-3 border-t border-stone-200
+              bg-white/90 px-4 py-3 backdrop-blur sm:-mx-6 sm:px-6">
+    <button type="submit" class="btn-primario">Confirmar importación</button>
+    <span class="nota">Revisa cada archivo antes de confirmar.</span>
+  </div>
 </form>
 
 <form method="post" action="/importar/{{ lote }}/descartar">
-  <button type="submit">Descartar</button>
+  <button type="submit" class="btn-peligro">Descartar</button>
 </form>
+</div>
 {% endblock %}

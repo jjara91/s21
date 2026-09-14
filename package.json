@@ -1,0 +1,13 @@
+{
+  "name": "s21-estilos",
+  "private": true,
+  "description": "Solo para generar app/web/static/estilos.css con Tailwind. La aplicación no necesita Node en tiempo de ejecución.",
+  "scripts": {
+    "estilos": "tailwindcss -i assets/estilos.css -o app/web/static/estilos.css --minify",
+    "estilos:watch": "tailwindcss -i assets/estilos.css -o app/web/static/estilos.css --watch"
+  },
+  "devDependencies": {
+    "@tailwindcss/cli": "^4.1.0",
+    "tailwindcss": "^4.1.0"
+  }
+}

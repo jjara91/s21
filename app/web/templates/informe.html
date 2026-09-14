@@ -1,68 +1,98 @@
 {% extends "base.html" %}
+{% block titulo %}Informe{% endblock %}
+{% block encabezado %}Informe{% endblock %}
 {% block contenido %}
+<div class="pila">
 {% if informe %}
-<h1>{{ mes | mes_nombre }} de {{ anio }}</h1>
+  <div class="flex flex-wrap items-center justify-between gap-3">
+    <h1>{{ mes | mes_nombre }} de {{ anio }}</h1>
+    <a href="/informe/anual" class="text-sm">Ver el año completo →</a>
+  </div>
 
-<form method="get" action="/informe">
-  <label>Mes
-    <select name="mes">
-      {% for m in [1,2,3,4,5,6,7,8,9,10,11,12] %}
-      <option value="{{ m }}" {% if m == mes %}selected{% endif %}>{{ m | mes_nombre }}</option>
-      {% endfor %}
-    </select></label>
-  <label>Año <input type="number" name="anio" value="{{ anio }}"></label>
-  <button type="submit">Ver</button>
-</form>
+  <form method="get" action="/informe" class="tarjeta fila-campos">
+    <label>Mes
+      <select name="mes">
+        {% for m in [1,2,3,4,5,6,7,8,9,10,11,12] %}
+        <option value="{{ m }}" {% if m == mes %}selected{% endif %}>{{ m | mes_nombre }}</option>
+        {% endfor %}
+      </select></label>
+    <label>Año <input type="number" name="anio" value="{{ anio }}"></label>
+    <button type="submit">Ver</button>
+  </form>
 
-<table>
-  <tr><th></th><th class="numero">Informaron</th><th class="numero">Cursos</th>
-      <th class="numero">Horas</th></tr>
-  {% for fila in informe.filas %}
-  <tr>
-    <td>{{ fila.etiqueta }}</td>
-    <td class="numero">{{ fila.informaron }}</td>
-    <td class="numero">{{ fila.cursos }}</td>
-    <td class="numero">{{ fila.horas if fila.horas is not none else '—' }}</td>
-  </tr>
-  {% endfor %}
-  <tr>
-    <th>Total</th>
-    <td class="numero">{{ informe.total_informaron }}</td>
-    <td class="numero">{{ informe.total_cursos }}</td>
-    <td class="numero">{{ informe.total_horas }}</td>
-  </tr>
-  <tr><td>No informaron</td><td class="numero">{{ informe.no_informaron }}</td><td></td><td></td></tr>
-  <tr><td>Sin cargar</td><td class="numero">{{ informe.sin_cargar }}</td><td></td><td></td></tr>
-  <tr><td>Promedio horas precursor regular</td><td></td><td></td>
-      <td class="numero">{{ informe.promedio_horas_precursor_regular if informe.promedio_horas_precursor_regular is not none else '—' }}</td></tr>
-</table>
-{% if informe.sin_cargar %}
-<p>«Sin cargar» son publicadores sin ninguna fila este mes: no significa que
-   no informaron, sino que el mes todavía no se ha cargado en la grilla.</p>
-{% endif %}
+  <div class="grid gap-4 sm:grid-cols-3">
+    <div class="tarjeta">
+      <p class="text-xs font-semibold uppercase tracking-wide tenue">Informaron</p>
+      <p class="mt-1 text-3xl font-semibold tabular-nums text-stone-900">{{ informe.total_informaron }}</p>
+    </div>
+    <div class="tarjeta">
+      <p class="text-xs font-semibold uppercase tracking-wide tenue">Cursos</p>
+      <p class="mt-1 text-3xl font-semibold tabular-nums text-stone-900">{{ informe.total_cursos }}</p>
+    </div>
+    <div class="tarjeta">
+      <p class="text-xs font-semibold uppercase tracking-wide tenue">Horas</p>
+      <p class="mt-1 text-3xl font-semibold tabular-nums text-stone-900">{{ informe.total_horas }}</p>
+    </div>
+  </div>
 
-<p><a href="/informe/anual">Ver el año completo</a></p>
+  <div class="tarjeta">
+    <div class="tabla-scroll">
+      <table>
+        <tr><th></th><th class="numero">Informaron</th><th class="numero">Cursos</th>
+            <th class="numero">Horas</th></tr>
+        {% for fila in informe.filas %}
+        <tr>
+          <td class="font-medium">{{ fila.etiqueta }}</td>
+          <td class="numero">{{ fila.informaron }}</td>
+          <td class="numero">{{ fila.cursos }}</td>
+          <td class="numero">{{ fila.horas if fila.horas is not none else '—' }}</td>
+        </tr>
+        {% endfor %}
+        <tr class="fila-total">
+          <th>Total</th>
+          <td class="numero">{{ informe.total_informaron }}</td>
+          <td class="numero">{{ informe.total_cursos }}</td>
+          <td class="numero">{{ informe.total_horas }}</td>
+        </tr>
+        <tr><td>No informaron</td><td class="numero">{{ informe.no_informaron }}</td><td></td><td></td></tr>
+        <tr><td>Sin cargar</td><td class="numero">{{ informe.sin_cargar }}</td><td></td><td></td></tr>
+        <tr><td>Promedio horas precursor regular</td><td></td><td></td>
+            <td class="numero">{{ informe.promedio_horas_precursor_regular if informe.promedio_horas_precursor_regular is not none else '—' }}</td></tr>
+      </table>
+    </div>
+  </div>
+
+  {% if informe.sin_cargar %}
+  <p class="nota">«Sin cargar» son publicadores sin ninguna fila este mes: no significa que
+     no informaron, sino que el mes todavía no se ha cargado en la grilla.</p>
+  {% endif %}
 {% else %}
-<h1>Año de servicio {{ anio_servicio }}</h1>
+  <h1>Año de servicio {{ anio_servicio }}</h1>
 
-<table>
-  <tr>
-    <th>Mes</th><th class="numero">Informaron</th><th class="numero">No informaron</th>
-    <th class="numero">Sin cargar</th>
-    <th class="numero">Cursos</th><th class="numero">Horas</th>
-  </tr>
-  {% for mensual in anual %}
-  <tr>
-    <td><a href="/informe?anio={{ mensual.anio }}&amp;mes={{ mensual.mes }}">{{ mensual.mes | mes_nombre }}</a></td>
-    <td class="numero">{{ mensual.total_informaron }}</td>
-    <td class="numero">{{ mensual.no_informaron }}</td>
-    <td class="numero">{{ mensual.sin_cargar }}</td>
-    <td class="numero">{{ mensual.total_cursos }}</td>
-    <td class="numero">{{ mensual.total_horas }}</td>
-  </tr>
-  {% endfor %}
-</table>
-<p>«Sin cargar» son meses todavía sin ninguna fila —típicamente los meses
-   futuros del año en curso—, distinto de un mes cargado donde nadie informó.</p>
+  <div class="tarjeta">
+    <div class="tabla-scroll">
+      <table>
+        <tr>
+          <th>Mes</th><th class="numero">Informaron</th><th class="numero">No informaron</th>
+          <th class="numero">Sin cargar</th>
+          <th class="numero">Cursos</th><th class="numero">Horas</th>
+        </tr>
+        {% for mensual in anual %}
+        <tr>
+          <td class="font-medium"><a href="/informe?anio={{ mensual.anio }}&amp;mes={{ mensual.mes }}">{{ mensual.mes | mes_nombre }}</a></td>
+          <td class="numero">{{ mensual.total_informaron }}</td>
+          <td class="numero">{{ mensual.no_informaron }}</td>
+          <td class="numero">{{ mensual.sin_cargar }}</td>
+          <td class="numero">{{ mensual.total_cursos }}</td>
+          <td class="numero">{{ mensual.total_horas }}</td>
+        </tr>
+        {% endfor %}
+      </table>
+    </div>
+  </div>
+
+  <p class="nota">«Sin cargar» son meses todavía sin ninguna fila —típicamente los meses
+     futuros del año en curso—, distinto de un mes cargado donde nadie informó.</p>
 {% endif %}
+</div>
 {% endblock %}

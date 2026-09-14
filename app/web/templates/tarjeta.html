@@ -1,31 +1,56 @@
 {% extends "base.html" %}
+{% block titulo %}{{ publicador.nombre_completo }} — {{ anio_servicio }}{% endblock %}
+{% block encabezado %}Tarjeta S-21{% endblock %}
 {% block contenido %}
-<h1>{{ publicador.nombre_completo }} — año {{ anio_servicio }}</h1>
+<div class="pila">
+  <div class="flex flex-wrap items-center justify-between gap-3">
+    <h1>{{ publicador.nombre_completo }} — año {{ anio_servicio }}</h1>
+    <div class="flex items-center gap-2">
+      <a href="/publicadores/{{ publicador.id }}/tarjeta/{{ anio_servicio - 1 }}"
+         class="rounded-lg border border-stone-300 bg-white px-2.5 py-1 text-xs font-medium
+                text-stone-700 no-underline hover:bg-stone-50">← {{ anio_servicio - 1 }}</a>
+      <a href="/publicadores/{{ publicador.id }}/tarjeta/{{ anio_servicio + 1 }}"
+         class="rounded-lg border border-stone-300 bg-white px-2.5 py-1 text-xs font-medium
+                text-stone-700 no-underline hover:bg-stone-50">{{ anio_servicio + 1 }} →</a>
+    </div>
+  </div>
 
-<p>
-  <a href="/publicadores/{{ publicador.id }}/tarjeta/{{ anio_servicio }}.pdf">PDF</a>
-  ·
-  <a href="/publicadores/{{ publicador.id }}/tarjeta/{{ anio_servicio }}.pdf?aplanado=1">PDF solo lectura</a>
-  ·
-  <a href="/publicadores/{{ publicador.id }}/tarjeta/{{ anio_servicio - 1 }}">← {{ anio_servicio - 1 }}</a>
-  ·
-  <a href="/publicadores/{{ publicador.id }}/tarjeta/{{ anio_servicio + 1 }}">{{ anio_servicio + 1 }} →</a>
-</p>
+  <div class="flex flex-wrap items-center gap-2">
+    <a href="/publicadores/{{ publicador.id }}/tarjeta/{{ anio_servicio }}.pdf"
+       class="inline-flex items-center gap-2 rounded-lg bg-marca-800 px-3.5 py-2 text-sm
+              font-medium text-white no-underline shadow-sm hover:bg-marca-700 hover:text-white">
+      <svg viewBox="0 0 24 24" class="h-4 w-4" fill="none" stroke="currentColor"
+           stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <path d="M12 3.75v10.5m0 0L8.25 10.5M12 14.25 15.75 10.5M4.5 15v4.5h15V15"></path>
+      </svg>
+      PDF
+    </a>
+    <a href="/publicadores/{{ publicador.id }}/tarjeta/{{ anio_servicio }}.pdf?aplanado=1"
+       class="inline-flex items-center gap-2 rounded-lg border border-stone-300 bg-white
+              px-3.5 py-2 text-sm font-medium text-stone-700 no-underline hover:bg-stone-50">
+      PDF solo lectura
+    </a>
+  </div>
 
-<table>
-  <tr><th>Mes</th><th>Participó</th><th>Cursos</th><th>Prec. auxiliar</th><th>Horas</th><th>Notas</th></tr>
-  {% for fila in tarjeta.meses %}
-  <tr>
-    <td>{{ fila.mes | mes_nombre }}</td>
-    <td>{{ 'sí' if fila.participo else '' }}</td>
-    <td class="numero">{{ fila.cursos_biblicos if fila.cursos_biblicos is not none else '' }}</td>
-    <td>{{ 'sí' if fila.precursor_auxiliar else '' }}</td>
-    <td class="numero">{{ fila.horas if fila.horas is not none else '' }}</td>
-    <td>{{ fila.notas or '' }}</td>
-  </tr>
-  {% endfor %}
-  <tr><th>Total</th><td colspan="3"></td>
-      <td class="numero">{{ tarjeta.total_horas() if tarjeta.total_horas() is not none else '' }}</td>
-      <td></td></tr>
-</table>
+  <div class="tarjeta">
+    <div class="tabla-scroll">
+      <table>
+        <tr><th>Mes</th><th class="text-center">Participó</th><th class="numero">Cursos</th><th class="text-center">Prec. auxiliar</th><th class="numero">Horas</th><th>Notas</th></tr>
+        {% for fila in tarjeta.meses %}
+        <tr>
+          <td class="font-medium whitespace-nowrap">{{ fila.mes | mes_nombre }}</td>
+          <td class="text-center">{{ 'sí' if fila.participo else '' }}</td>
+          <td class="numero">{{ fila.cursos_biblicos if fila.cursos_biblicos is not none else '' }}</td>
+          <td class="text-center">{{ 'sí' if fila.precursor_auxiliar else '' }}</td>
+          <td class="numero">{{ fila.horas if fila.horas is not none else '' }}</td>
+          <td class="tenue">{{ fila.notas or '' }}</td>
+        </tr>
+        {% endfor %}
+        <tr class="fila-total"><th>Total</th><td colspan="3"></td>
+            <td class="numero">{{ tarjeta.total_horas() if tarjeta.total_horas() is not none else '' }}</td>
+            <td></td></tr>
+      </table>
+    </div>
+  </div>
+</div>
 {% endblock %}

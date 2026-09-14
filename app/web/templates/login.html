@@ -1,10 +1,22 @@
 {% extends "base.html" %}
+{% block titulo %}Iniciar sesión{% endblock %}
 {% block contenido %}
-<h1>Iniciar sesión</h1>
-{% if error %}<p class="error">{{ error }}</p>{% endif %}
-<form method="post" action="/entrar">
-  <label>Usuario <input name="usuario" autofocus required></label>
-  <label>Clave <input name="clave" type="password" required></label>
-  <button type="submit">Entrar</button>
-</form>
+<div class="w-full max-w-sm">
+  <div class="mb-6 flex flex-col items-center gap-3 text-center">
+    <span class="grid h-12 w-12 place-items-center rounded-xl bg-marca-800 text-base font-bold text-white">S21</span>
+    <div>
+      <h1>Iniciar sesión</h1>
+      <p class="nota mt-1">Registros de predicación de la congregación</p>
+    </div>
+  </div>
+
+  <div class="tarjeta">
+    {% if error %}<p class="error mb-4 rounded-lg bg-red-50 px-3 py-2">{{ error }}</p>{% endif %}
+    <form method="post" action="/entrar" class="flex flex-col gap-4">
+      <label>Usuario <input name="usuario" autofocus required class="max-w-none"></label>
+      <label>Clave <input name="clave" type="password" required class="max-w-none"></label>
+      <button type="submit" class="btn-primario w-full">Entrar</button>
+    </form>
+  </div>
+</div>
 {% endblock %}

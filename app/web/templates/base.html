@@ -1,30 +1,86 @@
 <!doctype html>
-<html lang="es">
+<html lang="es" class="h-full">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>{% block titulo %}Registros de predicación{% endblock %}</title>
   <link rel="stylesheet" href="/static/estilos.css">
 </head>
-<body>
-  {% if request.session.get('usuario') %}
-  <nav>
-    <a href="/">Inicio</a>
-    <a href="/grilla">Carga mensual</a>
-    <a href="/publicadores">Publicadores</a>
-    <a href="/grupos">Grupos</a>
-    <a href="/importar">Importar</a>
-    <a href="/exportar">Exportar</a>
-    <a href="/informe">Informe</a>
-    <a href="/alertas">Alertas</a>
-    <a href="/respaldo">Respaldo</a>
-    <form method="post" action="/salir" class="derecha">
-      <button type="submit">Salir</button>
-    </form>
-  </nav>
-  {% endif %}
-  <main>
-    {% block contenido %}{% endblock %}
-  </main>
+{% set autenticado = request.session.get('usuario') %}
+{% set ruta = request.url.path %}
+{% set enlaces = [
+  ('/', 'Inicio', 'M3 10.5 12 3l9 7.5M5.25 9.75V20h13.5V9.75'),
+  ('/grilla', 'Carga mensual', 'M4.5 5.75h15v14.5h-15zM3.75 9.75h16.5M7.75 3v2.5M16.25 3v2.5'),
+  ('/publicadores', 'Publicadores', 'M15.75 6.75a3.75 3.75 0 1 1-7.5 0 3.75 3.75 0 0 1 7.5 0ZM4.5 20.25a7.5 7.5 0 0 1 15 0'),
+  ('/grupos', 'Grupos', 'M14.5 8a2.5 2.5 0 1 1-5 0 2.5 2.5 0 0 1 5 0ZM7 19a5 5 0 0 1 10 0M6.5 6.5a2 2 0 1 1-4 0 2 2 0 0 1 4 0Zm15 0a2 2 0 1 1-4 0 2 2 0 0 1 4 0Z'),
+  ('/importar', 'Importar', 'M12 15.75V3.75m0 0L8.25 7.5M12 3.75l3.75 3.75M4.5 15v4.5h15V15'),
+  ('/exportar', 'Exportar', 'M12 3.75v12m0 0L8.25 12M12 15.75 15.75 12M4.5 15v4.5h15V15'),
+  ('/informe', 'Informe', 'M6.75 19.5V10.5m5.25 9V4.5m5.25 15v-6M3.75 20.25h16.5'),
+  ('/alertas', 'Alertas', 'M12 3.75a5.25 5.25 0 0 0-5.25 5.25c0 5.25-2.25 6.75-2.25 6.75h15s-2.25-1.5-2.25-6.75A5.25 5.25 0 0 0 12 3.75Zm-2.25 15a2.25 2.25 0 0 0 4.5 0'),
+  ('/respaldo', 'Respaldo', 'M4.5 6.75c0-1.24 3.36-2.25 7.5-2.25s7.5 1.01 7.5 2.25-3.36 2.25-7.5 2.25-7.5-1.01-7.5-2.25Zm0 0v10.5c0 1.24 3.36 2.25 7.5 2.25s7.5-1.01 7.5-2.25V6.75M4.5 12c0 1.24 3.36 2.25 7.5 2.25s7.5-1.01 7.5-2.25'),
+] %}
+<body class="h-full">
+  <div class="min-h-full{% if autenticado %} lg:grid lg:grid-cols-[15rem_1fr]{% endif %}">
+    {% if autenticado %}
+    <input type="checkbox" id="menu" class="peer sr-only">
+
+    <label for="menu" aria-hidden="true"
+      class="fixed inset-0 z-20 hidden bg-stone-900/50 peer-checked:block lg:peer-checked:hidden"></label>
+
+    <aside class="fixed inset-y-0 left-0 z-30 flex w-60 -translate-x-full flex-col
+                  bg-marca-900 transition-transform duration-200
+                  peer-checked:translate-x-0 lg:static lg:translate-x-0">
+      <div class="flex items-center gap-2.5 px-5 py-5">
+        <span class="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-white/10
+                     text-sm font-bold text-white">S21</span>
+        <span class="text-sm font-semibold leading-tight text-white">Registros de<br>predicación</span>
+      </div>
+
+      <nav class="flex flex-1 flex-col gap-1 overflow-y-auto px-3 pb-4">
+        {% for href, texto, icono in enlaces %}
+        {% set activo = (ruta == href) if href == '/' else ruta.startswith(href) %}
+        <a href="{{ href }}" class="nav-item{% if activo %} activo{% endif %}"
+           {% if activo %}aria-current="page"{% endif %}>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"
+               stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="{{ icono }}"></path>
+          </svg>
+          {{ texto }}
+        </a>
+        {% endfor %}
+      </nav>
+    </aside>
+    {% endif %}
+
+    <div class="flex min-h-full flex-col">
+      {% if autenticado %}
+      <header class="sticky top-0 z-10 flex items-center gap-3 border-b border-stone-200
+                     bg-white/90 px-4 py-3 backdrop-blur sm:px-6">
+        <label for="menu"
+          class="inline-flex cursor-pointer items-center justify-center rounded-lg border
+                 border-stone-300 p-2 text-stone-600 hover:bg-stone-50 lg:hidden">
+          <svg viewBox="0 0 24 24" class="h-5 w-5" fill="none" stroke="currentColor"
+               stroke-width="1.8" stroke-linecap="round" aria-hidden="true">
+            <path d="M4 7h16M4 12h16M4 17h16"></path>
+          </svg>
+          <span class="sr-only">Abrir el menú</span>
+        </label>
+
+        <span class="truncate text-sm font-medium tenue">
+          {% block encabezado %}Registros de predicación{% endblock %}
+        </span>
+
+        <form method="post" action="/salir" class="ml-auto">
+          <button type="submit" class="btn-mini">Salir</button>
+        </form>
+      </header>
+      {% endif %}
+
+      <main class="{% if autenticado %}mx-auto w-full max-w-6xl flex-1 px-4 py-6 sm:px-6 sm:py-8
+                   {% else %}flex flex-1 items-center justify-center px-4 py-12{% endif %}">
+        {% block contenido %}{% endblock %}
+      </main>
+    </div>
+  </div>
 </body>
 </html>

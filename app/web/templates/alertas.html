@@ -1,19 +1,27 @@
 {% extends "base.html" %}
+{% block titulo %}Alertas{% endblock %}
+{% block encabezado %}Alertas{% endblock %}
 {% block contenido %}
-<h1>Alertas</h1>
+<div class="pila">
+  <h1>Alertas</h1>
 
-{% if alertas %}
-<table>
-  <tr><th>Publicador</th><th>Estado</th><th>Meses sin informar</th></tr>
-  {% for alerta in alertas %}
-  <tr>
-    <td><a href="/publicadores/{{ alerta.publicador.id }}">{{ alerta.publicador.nombre_completo }}</a></td>
-    <td>{{ alerta.estado }}</td>
-    <td>{% for anio, mes in alerta.meses_sin_informar %}{{ mes | mes_nombre }} {{ anio }}{% if not loop.last %}, {% endif %}{% endfor %}</td>
-  </tr>
-  {% endfor %}
-</table>
-{% else %}
-<p>Sin publicadores irregulares ni inactivos.</p>
-{% endif %}
+  {% if alertas %}
+  <div class="tarjeta">
+    <div class="tabla-scroll">
+      <table>
+        <tr><th>Publicador</th><th>Estado</th><th>Meses sin informar</th></tr>
+        {% for alerta in alertas %}
+        <tr>
+          <td class="font-medium whitespace-nowrap"><a href="/publicadores/{{ alerta.publicador.id }}">{{ alerta.publicador.nombre_completo }}</a></td>
+          <td><span class="chip chip-alerta">{{ alerta.estado }}</span></td>
+          <td class="tenue">{% for anio, mes in alerta.meses_sin_informar %}{{ mes | mes_nombre }} {{ anio }}{% if not loop.last %}, {% endif %}{% endfor %}</td>
+        </tr>
+        {% endfor %}
+      </table>
+    </div>
+  </div>
+  {% else %}
+  <p class="vacio">Sin publicadores irregulares ni inactivos.</p>
+  {% endif %}
+</div>
 {% endblock %}

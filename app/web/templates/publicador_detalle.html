@@ -1,74 +1,100 @@
 {% extends "base.html" %}
+{% block titulo %}{{ publicador.nombre_completo }}{% endblock %}
+{% block encabezado %}Publicadores{% endblock %}
 {% block contenido %}
-<h1>{{ publicador.nombre_completo }}</h1>
+<div class="pila">
+  <div class="flex flex-wrap items-center justify-between gap-3">
+    <h1>{{ publicador.nombre_completo }}</h1>
+    <p class="flex flex-wrap items-center gap-2 text-sm">
+      <span class="nota">Tarjetas:</span>
+      {% for anio in [2024, 2025, 2026, 2027] %}
+      <a href="/publicadores/{{ publicador.id }}/tarjeta/{{ anio }}"
+         class="rounded-lg border border-stone-300 bg-white px-2.5 py-1 text-xs font-medium
+                text-stone-700 no-underline hover:bg-stone-50">{{ anio }}</a>
+      {% endfor %}
+    </p>
+  </div>
 
-<p>Tarjetas:
-  {% for anio in [2024, 2025, 2026, 2027] %}
-  <a href="/publicadores/{{ publicador.id }}/tarjeta/{{ anio }}">{{ anio }}</a>
-  {% endfor %}
-</p>
+  <form method="post" action="/publicadores/{{ publicador.id }}" class="tarjeta grid gap-4 sm:grid-cols-2">
+    <label class="sm:col-span-2">Nombre completo
+      <input name="nombre_completo" value="{{ publicador.nombre_completo }}" required></label>
+    <label>Sexo
+      <select name="sexo"><option value="">—</option>
+        <option value="H" {% if publicador.sexo == 'H' %}selected{% endif %}>Hombre</option>
+        <option value="M" {% if publicador.sexo == 'M' %}selected{% endif %}>Mujer</option>
+      </select></label>
+    <label>Esperanza
+      <select name="esperanza"><option value="">—</option>
+        <option value="otras_ovejas" {% if publicador.esperanza == 'otras_ovejas' %}selected{% endif %}>Otras ovejas</option>
+        <option value="ungido" {% if publicador.esperanza == 'ungido' %}selected{% endif %}>Ungido</option>
+      </select></label>
+    <label>Fecha de nacimiento
+      <input type="date" name="fecha_nacimiento" value="{{ publicador.fecha_nacimiento or '' }}"></label>
+    <label>Fecha de bautismo
+      <input type="date" name="fecha_bautismo" value="{{ publicador.fecha_bautismo or '' }}"></label>
+    <label>Grupo
+      <select name="grupo_id"><option value="">—</option>
+        {% for grupo in grupos %}
+        <option value="{{ grupo.id }}" {% if publicador.grupo_id == grupo.id %}selected{% endif %}>{{ grupo.nombre }}</option>
+        {% endfor %}</select></label>
+    <div class="acciones sm:col-span-2">
+      <button type="submit" class="btn-primario">Guardar</button>
+    </div>
+  </form>
 
-<form method="post" action="/publicadores/{{ publicador.id }}">
-  <label>Nombre completo
-    <input name="nombre_completo" value="{{ publicador.nombre_completo }}" required></label>
-  <label>Sexo
-    <select name="sexo"><option value="">—</option>
-      <option value="H" {% if publicador.sexo == 'H' %}selected{% endif %}>Hombre</option>
-      <option value="M" {% if publicador.sexo == 'M' %}selected{% endif %}>Mujer</option>
-    </select></label>
-  <label>Esperanza
-    <select name="esperanza"><option value="">—</option>
-      <option value="otras_ovejas" {% if publicador.esperanza == 'otras_ovejas' %}selected{% endif %}>Otras ovejas</option>
-      <option value="ungido" {% if publicador.esperanza == 'ungido' %}selected{% endif %}>Ungido</option>
-    </select></label>
-  <label>Fecha de nacimiento
-    <input type="date" name="fecha_nacimiento" value="{{ publicador.fecha_nacimiento or '' }}"></label>
-  <label>Fecha de bautismo
-    <input type="date" name="fecha_bautismo" value="{{ publicador.fecha_bautismo or '' }}"></label>
-  <label>Grupo
-    <select name="grupo_id"><option value="">—</option>
-      {% for grupo in grupos %}
-      <option value="{{ grupo.id }}" {% if publicador.grupo_id == grupo.id %}selected{% endif %}>{{ grupo.nombre }}</option>
-      {% endfor %}</select></label>
-  <button type="submit">Guardar</button>
-</form>
+  <section>
+    <h2>Nombramientos</h2>
+    <div class="tarjeta">
+      <div class="tabla-scroll">
+        <table>
+          <tr><th>Tipo</th><th>Desde</th><th>Hasta</th><th></th></tr>
+          {% for n in nombramientos %}
+          <tr>
+            <td class="font-medium">{{ etiquetas[n.tipo] }}</td>
+            <td class="whitespace-nowrap">{{ n.desde }}</td>
+            <td class="whitespace-nowrap">
+              {% if n.hasta %}{{ n.hasta }}{% else %}<span class="chip chip-ok">vigente</span>{% endif %}
+            </td>
+            <td class="text-right">
+              {% if not n.hasta %}
+              <form method="post" action="/publicadores/{{ publicador.id }}/nombramientos/{{ n.id }}/cerrar"
+                    class="flex items-center justify-end gap-2">
+                <input type="date" name="hasta" required class="mt-0">
+                <button type="submit" class="btn-mini">Cerrar</button>
+              </form>
+              {% endif %}
+            </td>
+          </tr>
+          {% else %}
+          <tr><td colspan="4" class="py-6 text-center tenue">Sin nombramientos.</td></tr>
+          {% endfor %}
+        </table>
+      </div>
 
-<h2>Nombramientos</h2>
-<table>
-  <tr><th>Tipo</th><th>Desde</th><th>Hasta</th><th></th></tr>
-  {% for n in nombramientos %}
-  <tr>
-    <td>{{ etiquetas[n.tipo] }}</td>
-    <td>{{ n.desde }}</td>
-    <td>{{ n.hasta or 'vigente' }}</td>
-    <td>
-      {% if not n.hasta %}
-      <form method="post" action="/publicadores/{{ publicador.id }}/nombramientos/{{ n.id }}/cerrar">
-        <input type="date" name="hasta" required>
-        <button type="submit">Cerrar</button>
+      <form method="post" action="/publicadores/{{ publicador.id }}/nombramientos" class="acciones fila-campos">
+        <label>Tipo
+          <select name="tipo">
+            {% for tipo in tipos %}<option value="{{ tipo }}">{{ etiquetas[tipo] }}</option>{% endfor %}
+          </select></label>
+        <label>Desde <input type="date" name="desde" required></label>
+        <button type="submit">Agregar nombramiento</button>
       </form>
-      {% endif %}
-    </td>
-  </tr>
-  {% endfor %}
-</table>
+    </div>
+  </section>
 
-<form method="post" action="/publicadores/{{ publicador.id }}/nombramientos">
-  <select name="tipo">
-    {% for tipo in tipos %}<option value="{{ tipo }}">{{ etiquetas[tipo] }}</option>{% endfor %}
-  </select>
-  <input type="date" name="desde" required>
-  <button type="submit">Agregar nombramiento</button>
-</form>
-
-<h2>Dar de baja</h2>
-<form method="post" action="/publicadores/{{ publicador.id }}/baja">
-  <input type="date" name="fecha_baja" required>
-  <select name="motivo_baja">
-    <option value="fallecido">Fallecido</option>
-    <option value="mudado">Mudado</option>
-    <option value="otro">Otro</option>
-  </select>
-  <button type="submit">Dar de baja</button>
-</form>
+  <section>
+    <h2>Dar de baja</h2>
+    <form method="post" action="/publicadores/{{ publicador.id }}/baja"
+          class="tarjeta border-red-200 fila-campos">
+      <label>Fecha de baja <input type="date" name="fecha_baja" required></label>
+      <label>Motivo
+        <select name="motivo_baja">
+          <option value="fallecido">Fallecido</option>
+          <option value="mudado">Mudado</option>
+          <option value="otro">Otro</option>
+        </select></label>
+      <button type="submit" class="btn-peligro">Dar de baja</button>
+    </form>
+  </section>
+</div>
 {% endblock %}

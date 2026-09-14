@@ -34,6 +34,20 @@ pip install -e ".[dev]"
 pytest
 ```
 
+### Estilos
+
+La interfaz usa Tailwind. El CSS que sirve la aplicación
+(`app/web/static/estilos.css`) está **generado y versionado**, así que ni la
+imagen de Docker ni el equipo donde corre necesitan Node.
+
+Al tocar `assets/estilos.css` o cualquier plantilla hay que regenerarlo:
+
+```bash
+./scripts/estilos.sh          # instala las dependencias la primera vez
+```
+
+Mientras se edita conviene `npm run estilos:watch`.
+
 La prueba que compara el mapa de campos contra el formulario real se salta si no
 existe `data/plantilla_s21.pdf`. En el equipo donde sí existe, es la que avisa
 primero si aparece una versión nueva del S-21.

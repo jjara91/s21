@@ -1,35 +1,47 @@
 {% extends "base.html" %}
+{% block titulo %}Grupos de predicación{% endblock %}
+{% block encabezado %}Grupos{% endblock %}
 {% block contenido %}
-<h1>Grupos de predicación</h1>
+<div class="pila">
+  <h1>Grupos de predicación</h1>
 
-<table>
-  <tr><th>Nombre</th><th>Superintendente</th><th></th></tr>
-  {% for grupo in grupos %}
-  <tr>
-    <td colspan="2">
-      <form method="post" action="/grupos/{{ grupo.id }}">
-        <input name="nombre" value="{{ grupo.nombre }}" required>
-        <select name="superintendente_id">
-          <option value="">—</option>
-          {% for p in publicadores %}
-          <option value="{{ p.id }}" {% if grupo.superintendente_id == p.id %}selected{% endif %}>{{ p.nombre_completo }}</option>
-          {% endfor %}
-        </select>
-        <button type="submit">Guardar</button>
-      </form>
-    </td>
-    <td>
-      <form method="post" action="/grupos/{{ grupo.id }}/eliminar">
-        <button type="submit">Eliminar</button>
-      </form>
-    </td>
-  </tr>
-  {% endfor %}
-</table>
+  <div class="tarjeta">
+    <div class="tabla-scroll">
+      <table>
+        <tr><th>Nombre</th><th>Superintendente</th><th></th></tr>
+        {% for grupo in grupos %}
+        <tr>
+          <td colspan="2">
+            <form method="post" action="/grupos/{{ grupo.id }}" class="fila-campos">
+              <input name="nombre" value="{{ grupo.nombre }}" required class="mt-0">
+              <select name="superintendente_id" class="mt-0">
+                <option value="">—</option>
+                {% for p in publicadores %}
+                <option value="{{ p.id }}" {% if grupo.superintendente_id == p.id %}selected{% endif %}>{{ p.nombre_completo }}</option>
+                {% endfor %}
+              </select>
+              <button type="submit" class="btn-mini">Guardar</button>
+            </form>
+          </td>
+          <td class="text-right">
+            <form method="post" action="/grupos/{{ grupo.id }}/eliminar">
+              <button type="submit" class="btn-peligro btn-mini">Eliminar</button>
+            </form>
+          </td>
+        </tr>
+        {% else %}
+        <tr><td colspan="3" class="py-8 text-center tenue">Todavía no hay grupos.</td></tr>
+        {% endfor %}
+      </table>
+    </div>
+  </div>
 
-<h2>Agregar grupo</h2>
-<form method="post" action="/grupos">
-  <input name="nombre" required>
-  <button type="submit">Crear</button>
-</form>
+  <section>
+    <h2>Agregar grupo</h2>
+    <form method="post" action="/grupos" class="tarjeta fila-campos">
+      <label>Nombre <input name="nombre" required></label>
+      <button type="submit" class="btn-primario">Crear</button>
+    </form>
+  </section>
+</div>
 {% endblock %}

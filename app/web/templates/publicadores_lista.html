@@ -1,56 +1,69 @@
 {% extends "base.html" %}
+{% block titulo %}Publicadores{% endblock %}
+{% block encabezado %}Publicadores{% endblock %}
 {% block contenido %}
-<h1>Publicadores</h1>
+<div class="pila">
+  <h1>Publicadores</h1>
 
-<form method="get" action="/publicadores">
-  <input name="texto" value="{{ texto }}" placeholder="Buscar por nombre">
-  <label>Grupo
-    <select name="grupo_id"><option value="">Todos</option>
-      {% for grupo in todos_los_grupos %}
-      <option value="{{ grupo.id }}" {% if grupo.id == grupo_id %}selected{% endif %}>{{ grupo.nombre }}</option>
-      {% endfor %}</select></label>
-  <label>Privilegio
-    <select name="privilegio"><option value="">Todos</option>
-      {% for tipo in tipos %}
-      <option value="{{ tipo }}" {% if tipo == privilegio %}selected{% endif %}>{{ etiquetas[tipo] }}</option>
-      {% endfor %}</select></label>
-  <label><input type="checkbox" name="incluir_bajas" value="1"
-    {% if incluir_bajas %}checked{% endif %}> Incluir bajas</label>
-  <button type="submit">Buscar</button>
-</form>
+  <form method="get" action="/publicadores" class="tarjeta fila-campos">
+    <label class="grow">Buscar
+      <input name="texto" value="{{ texto }}" placeholder="Buscar por nombre"></label>
+    <label>Grupo
+      <select name="grupo_id"><option value="">Todos</option>
+        {% for grupo in todos_los_grupos %}
+        <option value="{{ grupo.id }}" {% if grupo.id == grupo_id %}selected{% endif %}>{{ grupo.nombre }}</option>
+        {% endfor %}</select></label>
+    <label>Privilegio
+      <select name="privilegio"><option value="">Todos</option>
+        {% for tipo in tipos %}
+        <option value="{{ tipo }}" {% if tipo == privilegio %}selected{% endif %}>{{ etiquetas[tipo] }}</option>
+        {% endfor %}</select></label>
+    <label class="pb-2"><input type="checkbox" name="incluir_bajas" value="1"
+      {% if incluir_bajas %}checked{% endif %}> Incluir bajas</label>
+    <button type="submit">Buscar</button>
+  </form>
 
-{% if publicadores %}
-<table>
-  <tr><th>Nombre</th><th>Grupo</th><th>Bautismo</th><th>Estado</th></tr>
-  {% for p in publicadores %}
-  <tr>
-    <td><a href="/publicadores/{{ p.id }}">{{ p.nombre_completo }}</a></td>
-    <td>{{ grupos[p.grupo_id].nombre if p.grupo_id else '' }}</td>
-    <td>{{ p.fecha_bautismo or '' }}</td>
-    <td>{{ 'baja: ' ~ p.motivo_baja if p.fecha_baja else 'activo' }}</td>
-  </tr>
-  {% endfor %}
-</table>
-{% else %}
-<p>No hay publicadores que mostrar.</p>
-{% endif %}
+  {% if publicadores %}
+  <div class="tarjeta">
+    <div class="tabla-scroll">
+      <table>
+        <tr><th>Nombre</th><th>Grupo</th><th>Bautismo</th><th>Estado</th></tr>
+        {% for p in publicadores %}
+        <tr>
+          <td class="font-medium whitespace-nowrap"><a href="/publicadores/{{ p.id }}">{{ p.nombre_completo }}</a></td>
+          <td>{{ grupos[p.grupo_id].nombre if p.grupo_id else '' }}</td>
+          <td class="whitespace-nowrap tenue">{{ p.fecha_bautismo or '' }}</td>
+          <td><span class="chip {{ 'chip-baja' if p.fecha_baja else 'chip-ok' }}">{{ 'baja: ' ~ p.motivo_baja if p.fecha_baja else 'activo' }}</span></td>
+        </tr>
+        {% endfor %}
+      </table>
+    </div>
+  </div>
+  {% else %}
+  <p class="vacio">No hay publicadores que mostrar.</p>
+  {% endif %}
 
-<h2>Agregar publicador</h2>
-<form method="post" action="/publicadores">
-  <label>Nombre completo <input name="nombre_completo" required></label>
-  <label>Sexo
-    <select name="sexo"><option value="">—</option>
-      <option value="H">Hombre</option><option value="M">Mujer</option></select></label>
-  <label>Esperanza
-    <select name="esperanza"><option value="">—</option>
-      <option value="otras_ovejas">Otras ovejas</option>
-      <option value="ungido">Ungido</option></select></label>
-  <label>Fecha de nacimiento <input type="date" name="fecha_nacimiento"></label>
-  <label>Fecha de bautismo <input type="date" name="fecha_bautismo"></label>
-  <label>Grupo
-    <select name="grupo_id"><option value="">—</option>
-      {% for id, grupo in grupos.items() %}
-      <option value="{{ id }}">{{ grupo.nombre }}</option>{% endfor %}</select></label>
-  <button type="submit">Guardar</button>
-</form>
+  <section>
+    <h2>Agregar publicador</h2>
+    <form method="post" action="/publicadores" class="tarjeta grid gap-4 sm:grid-cols-2">
+      <label class="sm:col-span-2">Nombre completo <input name="nombre_completo" required></label>
+      <label>Sexo
+        <select name="sexo"><option value="">—</option>
+          <option value="H">Hombre</option><option value="M">Mujer</option></select></label>
+      <label>Esperanza
+        <select name="esperanza"><option value="">—</option>
+          <option value="otras_ovejas">Otras ovejas</option>
+          <option value="ungido">Ungido</option></select></label>
+      <label>Fecha de nacimiento <input type="date" name="fecha_nacimiento"></label>
+      <label>Fecha de bautismo <input type="date" name="fecha_bautismo"></label>
+      <label>Grupo
+        <select name="grupo_id"><option value="">—</option>
+          {% for id, grupo in grupos.items() %}
+          <option value="{{ id }}">{{ grupo.nombre }}</option>{% endfor %}</select></label>
+      <div class="acciones sm:col-span-2">
+        <button type="submit" class="btn-primario">Guardar</button>
+      </div>
+    </form>
+  </section>
+</div>
 {% endblock %}

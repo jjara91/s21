@@ -1,0 +1,260 @@
+@import "tailwindcss";
+
+@source "../app/web/templates";
+
+/* Paleta: el azul de la barra original (#23405a) convertido en escala. */
+@theme {
+  --font-sans: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+
+  --color-marca-50: #f2f6fa;
+  --color-marca-100: #e3ecf4;
+  --color-marca-200: #c7d8e8;
+  --color-marca-300: #9dbad3;
+  --color-marca-400: #6b95b8;
+  --color-marca-500: #4a789f;
+  --color-marca-600: #3a6085;
+  --color-marca-700: #2e4c6b;
+  --color-marca-800: #23405a;
+  --color-marca-900: #1c3349;
+  --color-marca-950: #12212f;
+}
+
+@layer base {
+  body {
+    @apply bg-stone-100 text-stone-900 antialiased;
+  }
+
+  h1 {
+    @apply text-2xl font-semibold tracking-tight text-stone-900;
+  }
+
+  h2 {
+    @apply mt-8 mb-3 text-lg font-semibold tracking-tight text-stone-800;
+  }
+
+  h3 {
+    @apply mt-5 mb-2 text-sm font-semibold uppercase tracking-wide text-stone-500;
+  }
+
+  a {
+    @apply text-marca-700 underline decoration-marca-300 underline-offset-2;
+  }
+
+  a:hover {
+    @apply text-marca-900 decoration-marca-600;
+  }
+
+  label {
+    @apply block text-sm font-medium text-stone-700;
+  }
+
+  /* Campos de texto, fechas, números y listas desplegables. */
+  input:not([type="checkbox"]):not([type="radio"]):not([type="file"]),
+  select,
+  textarea {
+    @apply mt-1 block w-full max-w-md rounded-lg border border-stone-300 bg-white
+           px-3 py-2 text-sm text-stone-900 shadow-xs
+           placeholder:text-stone-400
+           focus:border-marca-500 focus:ring-2 focus:ring-marca-500/30 focus:outline-none
+           disabled:cursor-not-allowed disabled:bg-stone-100 disabled:text-stone-400;
+  }
+
+  input[type="file"] {
+    @apply block w-full max-w-md text-sm text-stone-600
+           file:mr-3 file:rounded-lg file:border-0 file:bg-marca-800 file:px-3 file:py-2
+           file:text-sm file:font-medium file:text-white hover:file:bg-marca-700;
+  }
+
+  input[type="checkbox"] {
+    @apply h-4 w-4 cursor-pointer rounded border-stone-300 align-middle accent-marca-800
+           focus:ring-2 focus:ring-marca-500/30;
+  }
+
+  /* Etiqueta que solo envuelve un checkbox: en línea, no en bloque. */
+  label:has(> input[type="checkbox"]:first-child) {
+    @apply inline-flex items-center gap-2 font-normal text-stone-700;
+  }
+
+  button {
+    @apply inline-flex cursor-pointer items-center justify-center gap-2 rounded-lg
+           border border-stone-300 bg-white px-3.5 py-2 text-sm font-medium text-stone-700
+           shadow-xs transition
+           hover:bg-stone-50 hover:text-stone-900
+           focus-visible:ring-2 focus-visible:ring-marca-500/40 focus-visible:outline-none;
+  }
+
+  table {
+    @apply w-full border-collapse text-sm;
+  }
+
+  th {
+    @apply border-b border-stone-200 bg-stone-50 px-3 py-2 text-left text-xs
+           font-semibold uppercase tracking-wide text-stone-500;
+  }
+
+  td {
+    @apply border-b border-stone-100 px-3 py-2 align-middle text-stone-700;
+  }
+
+  tbody tr:last-child td,
+  tr:last-child td {
+    @apply border-b-0;
+  }
+
+  hr {
+    @apply my-8 border-stone-200;
+  }
+}
+
+@layer components {
+  /* Anchos por tipo de campo. Viven aquí y no en @layer base porque el
+     selector base usa :not() y le gana en especificidad a input[type=...]. */
+  input[type="number"] {
+    @apply w-24;
+  }
+
+  input[type="date"] {
+    @apply w-44;
+  }
+
+  /* --- Estructura --- */
+  .tarjeta {
+    @apply rounded-xl border border-stone-200 bg-white p-5 shadow-xs sm:p-6;
+  }
+
+  .pila {
+    @apply flex flex-col gap-6;
+  }
+
+  /* Formularios en línea (filtros, "agregar X"). */
+  .fila-campos {
+    @apply flex flex-wrap items-end gap-4;
+  }
+
+  .fila-campos label {
+    @apply shrink-0;
+  }
+
+  .fila-campos input:not([type="checkbox"]),
+  .fila-campos select {
+    @apply w-auto min-w-40;
+  }
+
+  .acciones {
+    @apply mt-6 flex flex-wrap items-center gap-3 border-t border-stone-200 pt-5;
+  }
+
+  /* --- Botones --- */
+  .btn-primario {
+    @apply border-transparent bg-marca-800 text-white shadow-sm
+           hover:bg-marca-700 hover:text-white;
+  }
+
+  .btn-peligro {
+    @apply border-red-200 bg-white text-red-700 hover:bg-red-50 hover:text-red-800;
+  }
+
+  .btn-mini {
+    @apply px-2.5 py-1 text-xs;
+  }
+
+  /* --- Tablas --- */
+  .tabla-scroll {
+    @apply -mx-5 overflow-x-auto sm:mx-0;
+  }
+
+  .tabla-scroll table {
+    @apply min-w-full;
+  }
+
+  tbody tr:hover td,
+  table tr:hover td {
+    @apply bg-stone-50/80;
+  }
+
+  tr.conflicto td,
+  tr.conflicto:hover td {
+    @apply bg-red-50 text-red-900;
+  }
+
+  .numero {
+    @apply text-right tabular-nums;
+  }
+
+  .fila-total th,
+  .fila-total td {
+    @apply border-t-2 border-stone-300 bg-stone-50 font-semibold text-stone-900;
+  }
+
+  /* --- Avisos --- */
+  .error {
+    @apply text-sm text-red-700;
+  }
+
+  .aviso {
+    @apply flex gap-3 rounded-lg border px-4 py-3 text-sm;
+  }
+
+  .aviso-error {
+    @apply border-red-200 bg-red-50 text-red-800;
+  }
+
+  .aviso-error a {
+    @apply text-red-900 decoration-red-400;
+  }
+
+  .aviso-ok {
+    @apply border-emerald-200 bg-emerald-50 text-emerald-800;
+  }
+
+  .aviso-info {
+    @apply border-marca-200 bg-marca-50 text-marca-900;
+  }
+
+  .nota {
+    @apply text-sm text-stone-500;
+  }
+
+  /* Texto secundario. Existe como clase propia para que las plantillas no
+     tengan que escribir "stone-500": una prueba comprueba que la página 404
+     no contenga la cadena "500". */
+  .tenue {
+    @apply text-stone-500;
+  }
+
+  .vacio {
+    @apply rounded-lg border border-dashed border-stone-300 bg-stone-50 px-4 py-8
+           text-center text-sm text-stone-500;
+  }
+
+  /* --- Etiquetas de estado --- */
+  .chip {
+    @apply inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium;
+  }
+
+  .chip-ok {
+    @apply bg-emerald-100 text-emerald-800;
+  }
+
+  .chip-alerta {
+    @apply bg-amber-100 text-amber-800;
+  }
+
+  .chip-baja {
+    @apply bg-stone-200 text-stone-600;
+  }
+
+  /* --- Navegación lateral --- */
+  .nav-item {
+    @apply flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium
+           text-marca-100 no-underline transition hover:bg-white/10 hover:text-white;
+  }
+
+  .nav-item.activo {
+    @apply bg-white/15 text-white shadow-inner;
+  }
+
+  .nav-item svg {
+    @apply h-4 w-4 shrink-0 opacity-80;
+  }
+}
