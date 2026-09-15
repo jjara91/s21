@@ -162,3 +162,15 @@ def test_publicador_inexistente_devuelve_404(cliente):
 
     assert respuesta.status_code == 404
     assert "500" not in respuesta.text
+
+
+def test_el_filtro_de_grupo_en_todos_no_rompe(cliente):
+    """Mismo caso que en la grilla: «Todos» viaja como grupo_id vacío."""
+    cliente.post("/publicadores", data={"nombre_completo": "Perez Ana"})
+
+    respuesta = cliente.get(
+        "/publicadores", params={"texto": "", "grupo_id": "", "privilegio": ""}
+    )
+
+    assert respuesta.status_code == 200
+    assert "Perez Ana" in respuesta.text

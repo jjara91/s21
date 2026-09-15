@@ -2,6 +2,7 @@ import logging
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, Request
+from fastapi.exceptions import RequestValidationError
 from fastapi.responses import RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from sqlalchemy.exc import IntegrityError, OperationalError
@@ -58,6 +59,23 @@ def _pagina_error(request: Request, titulo: str, mensaje: str, codigo: int):
 @app.exception_handler(DatosInvalidos)
 def datos_invalidos(request: Request, error: DatosInvalidos):
     return _pagina_error(request, "Datos incorrectos", error.mensaje, 400)
+
+
+@app.exception_handler(RequestValidationError)
+def validacion_invalida(request: Request, error: RequestValidationError):
+    # FastAPI atiende este error antes que cualquier manejador propio y
+    # responde con su JSON de validación en inglés. En una aplicación que solo
+    # sirve HTML eso se ve como una página rota, así que se traduce a la misma
+    # página de error que el resto: el detalle crudo queda en el registro, no
+    # en el navegador.
+    logging.getLogger("s21").info("Parámetros inválidos en %s: %s", request.url.path, error.errors())
+    return _pagina_error(
+        request,
+        "Datos incorrectos",
+        "La dirección o el formulario traen un dato que no se puede interpretar. "
+        "Vuelve a la página anterior e inténtalo de nuevo.",
+        400,
+    )
 
 
 @app.exception_handler(PublicadorNoEncontrado)

@@ -229,3 +229,14 @@ def test_marcar_auxiliar_y_horas_en_el_mismo_envio_guarda_las_horas(cliente):
 
     assert 'name="horas_1" value="30"' in respuesta.text
     assert "disabled" not in _etiqueta_horas(respuesta.text, 1)
+
+
+def test_el_filtro_de_grupo_en_todos_no_rompe(cliente):
+    """«Todos» es un <option value=""> y el navegador envía grupo_id vacío.
+    Sin coerción, Pydantic lo rechaza y la página muere en un 422 en inglés."""
+    _crear_publicador(cliente, "Perez Ana")
+
+    respuesta = cliente.get("/grilla", params={"anio": 2026, "mes": 1, "grupo_id": ""})
+
+    assert respuesta.status_code == 200
+    assert "Perez Ana" in respuesta.text

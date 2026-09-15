@@ -1,6 +1,9 @@
 """Errores de la capa web y ayudantes para no dejar escapar excepciones crudas."""
 
 from datetime import date
+from typing import Annotated
+
+from pydantic import BeforeValidator
 
 
 class DatosInvalidos(Exception):
@@ -46,3 +49,15 @@ def mes_valido(valor: int) -> int:
     if not 1 <= valor <= 12:
         raise DatosInvalidos(f"El mes {valor} no es válido. Debe estar entre 1 y 12.")
     return valor
+
+
+def _vacio_a_none(valor: object) -> object:
+    """Un <select> con una opción «Todos» de valor vacío siempre envía algo:
+    la cadena vacía. Sin esto, Pydantic la rechaza contra `int | None` y la
+    petición muere en un error de validación antes de llegar al endpoint."""
+    if isinstance(valor, str) and not valor.strip():
+        return None
+    return valor
+
+
+IdOpcional = Annotated[int | None, BeforeValidator(_vacio_a_none)]

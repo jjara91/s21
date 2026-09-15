@@ -9,7 +9,7 @@ from app.db import obtener_sesion
 from app.dominio import TIPOS_NOMBRAMIENTO
 from app.services import grupos, nombramientos
 from app.services import publicadores as servicio
-from app.web.errores import fecha_obligatoria, fecha_opcional
+from app.web.errores import IdOpcional, fecha_obligatoria, fecha_opcional
 from app.web.plantillas import plantillas
 
 router = APIRouter(prefix="/publicadores")
@@ -23,7 +23,7 @@ def _vacio_a_none(valor: str | None) -> str | None:
 def lista(
     request: Request,
     texto: str | None = None,
-    grupo_id: int | None = None,
+    grupo_id: IdOpcional = None,
     privilegio: str | None = None,
     incluir_bajas: bool = False,
     sesion: Session = Depends(obtener_sesion),

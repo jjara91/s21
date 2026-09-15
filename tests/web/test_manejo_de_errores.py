@@ -64,3 +64,17 @@ def test_un_error_no_previsto_da_una_pagina_generica_no_una_traza(
     assert "Traceback" not in respuesta.text
     assert "RuntimeError" not in respuesta.text
     assert "bug interno inesperado" not in respuesta.text
+
+
+def test_un_parametro_mal_formado_da_una_pagina_en_espanol_no_json(cliente):
+    """FastAPI atiende RequestValidationError antes que los manejadores de
+    app.main: sin uno propio, cualquier URL con un parámetro mal escrito
+    devuelve el JSON de validación en inglés en vez de la página de error."""
+    respuesta = cliente.get("/grilla", params={"anio": "abc", "mes": 1})
+
+    assert respuesta.status_code == 400
+    assert "Datos incorrectos" in respuesta.text
+    assert "Traceback" not in respuesta.text
+    texto = respuesta.text.lower()
+    assert "value is not a valid integer" not in texto
+    assert "unable to parse string" not in texto

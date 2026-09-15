@@ -8,7 +8,7 @@ from sqlmodel import Session
 from app.auth import requerir_sesion
 from app.db import obtener_sesion
 from app.services import grupos, registros
-from app.web.errores import DatosInvalidos, anio_valido, mes_valido
+from app.web.errores import DatosInvalidos, IdOpcional, anio_valido, mes_valido
 from app.web.plantillas import plantillas
 
 router = APIRouter(prefix="/grilla")
@@ -36,7 +36,7 @@ def ver(
     request: Request,
     anio: int | None = None,
     mes: int | None = None,
-    grupo_id: int | None = None,
+    grupo_id: IdOpcional = None,
     sesion: Session = Depends(obtener_sesion),
     _usuario: str = Depends(requerir_sesion),
 ):
