@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>{% block titulo %}Registros de predicación{% endblock %}</title>
   <link rel="stylesheet" href="/static/estilos.css">
+  <script src="/static/filtros.js" defer></script>
 </head>
 {% set autenticado = request.session.get('usuario') %}
 {% set ruta = request.url.path %}
