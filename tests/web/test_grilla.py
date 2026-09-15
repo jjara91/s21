@@ -212,3 +212,20 @@ def test_guardar_grilla_con_anio_fuera_de_rango_da_400_en_espanol(cliente):
 
     assert respuesta.status_code == 400
     assert "fuera de rango" in respuesta.text
+
+
+def test_marcar_auxiliar_y_horas_en_el_mismo_envio_guarda_las_horas(cliente):
+    """Contrato en el que se apoya el script de la grilla: habilitar el campo
+    de horas en el navegador al marcar auxiliar no necesita un guardado previo,
+    porque el servidor acepta ambos datos en el mismo envío."""
+    _crear_publicador(cliente, "Perez Ana")
+
+    cliente.post("/grilla", data={
+        "anio": "2026", "mes": "1", "publicadores": ["1"],
+        "participo_1": "1", "auxiliar_1": "1", "horas_1": "30",
+    }, follow_redirects=True)
+
+    respuesta = cliente.get("/grilla", params={"anio": 2026, "mes": 1})
+
+    assert 'name="horas_1" value="30"' in respuesta.text
+    assert "disabled" not in _etiqueta_horas(respuesta.text, 1)

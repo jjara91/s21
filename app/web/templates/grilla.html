@@ -59,7 +59,7 @@
           <td class="text-center"><input type="checkbox" name="auxiliar_{{ publicador.id }}" value="1"
                 {% if registro and registro.precursor_auxiliar %}checked{% endif %}></td>
           <td class="text-center"><input type="number" min="0" name="horas_{{ publicador.id }}" value="{{ registro.horas if registro and registro.horas is not none else '' }}" class="mt-0 mx-auto w-20 text-right"
-                {% if not horas_habilitadas %}disabled{% endif %}></td>
+                {% if not horas_habilitadas %}disabled data-bloqueado="1"{% endif %}></td>
           <td><input name="notas_{{ publicador.id }}" value="{{ registro.notas or '' if registro else '' }}" class="mt-0 min-w-48"></td>
         </tr>
         {% else %}
@@ -70,9 +70,37 @@
 
     <div class="acciones">
       <button type="submit" class="btn-primario">Guardar mes</button>
-      <p class="nota">Las horas se habilitan al guardar el mes si marcas precursor auxiliar, o si el
-      publicador tiene un nombramiento de precursor o misionero vigente.</p>
+      <p class="nota">Las horas se habilitan al marcar precursor auxiliar, o si el publicador
+      tiene un nombramiento de precursor o misionero vigente.</p>
     </div>
   </form>
 </div>
+
+<script>
+  // Mejora progresiva. El campo de horas viene deshabilitado desde el servidor
+  // para quien no corresponde; sin esta línea de JS había que guardar el mes
+  // para que marcar «precursor auxiliar» surtiera efecto, y el navegador ni
+  // siquiera envía un campo deshabilitado: eran dos guardados por fila.
+  //
+  // Esto solo adelanta lo que el servidor va a decidir igual: guardar_mes
+  // revalida con _puede_tener_horas y anula las horas de quien no corresponda.
+  document.querySelectorAll('input[name^="auxiliar_"]').forEach((casilla) => {
+    const id = casilla.name.slice("auxiliar_".length);
+    const horas = document.querySelector(`input[name="horas_${id}"]`);
+    if (!horas) return;
+
+    // Si el campo ya venía habilitado, lo está por un nombramiento de precursor
+    // o misionero: desmarcar la casilla no debe quitarlo.
+    const bloqueadoAlCargar = horas.dataset.bloqueado === "1";
+
+    casilla.addEventListener("change", () => {
+      if (casilla.checked) {
+        horas.disabled = false;
+      } else if (bloqueadoAlCargar) {
+        horas.disabled = true;
+        horas.value = "";
+      }
+    });
+  });
+</script>
 {% endblock %}
