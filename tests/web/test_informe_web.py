@@ -87,3 +87,17 @@ def test_el_informe_anual_muestra_la_columna_sin_cargar(cliente):
     respuesta = cliente.get("/informe/anual", params={"anio_servicio": 2026})
 
     assert "Sin cargar" in respuesta.text
+
+
+def test_los_filtros_vacios_del_informe_no_rompen(cliente):
+    """Borrar el año del formulario manda anio= y mes= vacíos; deben caer en
+    el mes en curso, no en un error de validación."""
+    respuesta = cliente.get("/informe?anio=&mes=")
+
+    assert respuesta.status_code == 200
+
+
+def test_el_ano_de_servicio_vacio_no_rompe(cliente):
+    respuesta = cliente.get("/informe/anual?anio_servicio=")
+
+    assert respuesta.status_code == 200

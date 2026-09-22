@@ -5,7 +5,7 @@
 // limpia sin que el usuario vea los campos apagarse.
 //
 // Es solo cosmética de la URL: el servidor sigue aceptando los parámetros
-// vacíos (IdOpcional en app/web/errores.py), así que sin JS todo funciona igual.
+// vacíos (EnteroOpcional en app/web/errores.py), así que sin JS todo funciona igual.
 document.querySelectorAll("form[data-filtro]").forEach((formulario) => {
   formulario.addEventListener("submit", () => {
     const apagados = [];

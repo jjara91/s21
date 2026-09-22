@@ -12,7 +12,7 @@ from app.config import cargar_config
 from app.db import obtener_sesion
 from app.dominio import anio_servicio_de
 from app.services import alertas, informe
-from app.web.errores import anio_valido, mes_valido
+from app.web.errores import EnteroOpcional, anio_valido, mes_valido
 from app.web.plantillas import plantillas
 
 router = APIRouter()
@@ -21,8 +21,8 @@ router = APIRouter()
 @router.get("/informe")
 def mensual(
     request: Request,
-    anio: int | None = None,
-    mes: int | None = None,
+    anio: EnteroOpcional = None,
+    mes: EnteroOpcional = None,
     sesion: Session = Depends(obtener_sesion),
     _usuario: str = Depends(requerir_sesion),
 ):
@@ -39,7 +39,7 @@ def mensual(
 @router.get("/informe/anual")
 def anual(
     request: Request,
-    anio_servicio: int | None = None,
+    anio_servicio: EnteroOpcional = None,
     sesion: Session = Depends(obtener_sesion),
     _usuario: str = Depends(requerir_sesion),
 ):

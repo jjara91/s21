@@ -240,3 +240,14 @@ def test_el_filtro_de_grupo_en_todos_no_rompe(cliente):
 
     assert respuesta.status_code == 200
     assert "Perez Ana" in respuesta.text
+
+
+def test_los_filtros_de_fecha_vacios_no_rompen(cliente):
+    """El año es un <input type="number"> que se puede dejar en blanco: sin
+    coerción, «Ver» con el campo vacío muere en un 422 antes del endpoint."""
+    _crear_publicador(cliente, "Perez Ana")
+
+    respuesta = cliente.get("/grilla?anio=&mes=&grupo_id=")
+
+    assert respuesta.status_code == 200
+    assert "Perez Ana" in respuesta.text

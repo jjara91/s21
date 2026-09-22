@@ -52,12 +52,27 @@ def mes_valido(valor: int) -> int:
 
 
 def _vacio_a_none(valor: object) -> object:
-    """Un <select> con una opción «Todos» de valor vacío siempre envía algo:
-    la cadena vacía. Sin esto, Pydantic la rechaza contra `int | None` y la
-    petición muere en un error de validación antes de llegar al endpoint."""
+    """Un campo de filtro vacío igual viaja en la URL: un <select> con la
+    opción «Todos» de valor vacío, o un <input type="number"> que el usuario
+    borró, envían la cadena vacía. Sin esto, Pydantic la rechaza contra
+    `int | None` y la petición muere en un error de validación antes de
+    llegar al endpoint."""
     if isinstance(valor, str) and not valor.strip():
         return None
     return valor
 
 
-IdOpcional = Annotated[int | None, BeforeValidator(_vacio_a_none)]
+# Todo parámetro numérico de las barras de filtro (grupo_id, anio, mes...):
+# vacío significa «sin filtrar», que es lo mismo que no mandarlo.
+EnteroOpcional = Annotated[int | None, BeforeValidator(_vacio_a_none)]
+
+
+def _vacio_a_falso(valor: object) -> object:
+    if isinstance(valor, str) and not valor.strip():
+        return False
+    return valor
+
+
+# Una casilla de filtro vacía en la URL (guardada o escrita a mano) equivale a
+# no marcarla; contra `bool` a secas, Pydantic rechaza la cadena vacía.
+BooleanoDeFiltro = Annotated[bool, BeforeValidator(_vacio_a_falso)]

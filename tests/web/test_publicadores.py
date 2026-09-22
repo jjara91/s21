@@ -174,3 +174,14 @@ def test_el_filtro_de_grupo_en_todos_no_rompe(cliente):
 
     assert respuesta.status_code == 200
     assert "Perez Ana" in respuesta.text
+
+
+def test_incluir_bajas_vacio_no_rompe(cliente):
+    """Una URL guardada o editada a mano puede traer la casilla vacía; contra
+    `bool` Pydantic la rechaza y la búsqueda muere en un error de validación."""
+    cliente.post("/publicadores", data={"nombre_completo": "Perez Ana"})
+
+    respuesta = cliente.get("/publicadores?texto=&grupo_id=&privilegio=&incluir_bajas=")
+
+    assert respuesta.status_code == 200
+    assert "Perez Ana" in respuesta.text
