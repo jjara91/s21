@@ -15,3 +15,19 @@ services:
       - "./app:/app/app"
       - "./migrations:/app/migrations"
     command: ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
+
+  # Editor web de la base (http://127.0.0.1:8081). Para corregir datos a mano
+  # mientras la app corre hay que hacerlo desde aquí, no con un cliente SQLite
+  # en macOS: Docker Desktop comparte ./data con la VM por virtiofs, que no
+  # propaga caché ni bloqueos entre macOS y los contenedores. La app, con su
+  # conexión abierta, seguiría leyendo la versión vieja, y dos escrituras
+  # simultáneas podrían corromper la base. Este contenedor corre en la misma
+  # VM que la app, así que ve sus cambios al instante y respeta sus bloqueos.
+  db:
+    image: coleifer/sqlite-web
+    # La imagen solo se publica para amd64; en Mac Apple Silicon corre emulada.
+    platform: linux/amd64
+    volumes: ["./data:/data"]
+    ports: ["127.0.0.1:8081:8080"]
+    environment:
+      SQLITE_DATABASE: s21.db

@@ -26,6 +26,21 @@ dejar el archivo en `data/` y reiniciar.
 
 `data/` está en `.gitignore`: los datos de la congregación no se versionan.
 
+### Editar la base a mano
+
+No edites `data/s21.db` con un cliente SQLite de macOS mientras el contenedor
+corre: Docker Desktop no propaga caché ni bloqueos entre macOS y la VM, así que
+la app sigue mostrando los datos viejos hasta reiniciarse y dos escrituras
+simultáneas pueden corromper la base. Usa el editor web de la sobrecapa de
+desarrollo, que corre junto a la app:
+
+```bash
+docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d db
+```
+
+y abre <http://127.0.0.1:8081>. Las claves foráneas están activas ahí, así que
+un borrado arrastra sus `ON DELETE CASCADE` igual que en la app.
+
 ## Desarrollo
 
 ```bash
