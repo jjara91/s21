@@ -1,5 +1,6 @@
-from datetime import date, datetime
+from datetime import date
 
+from pydantic import NaiveDatetime
 from sqlmodel import Field, SQLModel
 
 
@@ -50,7 +51,9 @@ class Importacion(SQLModel, table=True):
     id: int | None = Field(default=None, primary_key=True)
     archivo: str
     sha256: str = Field(index=True)
-    fecha: datetime
+    # Hora local sin zona, como las filas ya guardadas. Desde sqlmodel 0.0.45
+    # un `datetime` a secas exige zona horaria y rechaza datetime.now().
+    fecha: NaiveDatetime
     lote: str = Field(index=True)
     publicador_id: int | None = Field(default=None, foreign_key="publicador.id")
     anio_servicio: int | None = None
