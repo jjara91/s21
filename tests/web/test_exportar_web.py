@@ -99,6 +99,32 @@ def test_exportar_en_lote_excluye_a_quien_ya_se_habia_dado_de_baja_antes_del_ani
     assert ZipFile(BytesIO(respuesta.content)).namelist() == []
 
 
+def test_exportar_zip_separando_precursores_regulares(cliente, tmp_path):
+    from zipfile import ZipFile
+
+    _subir_plantilla(cliente, tmp_path)
+    cliente.post("/publicadores", data={"nombre_completo": "Perez Ana"})
+    cliente.post("/publicadores", data={"nombre_completo": "Soto Luis"})
+    cliente.post(
+        "/publicadores/1/nombramientos",
+        data={"tipo": "precursor_regular", "desde": "2025-09-01"},
+    )
+
+    respuesta = cliente.post(
+        "/exportar",
+        data={
+            "anio_servicio": "2026",
+            "formato": "zip",
+            "separar_precursores": "true",
+        },
+    )
+
+    assert sorted(ZipFile(BytesIO(respuesta.content)).namelist()) == [
+        "Precursores regulares/Perez Ana - 2026.pdf",
+        "Soto Luis - 2026.pdf",
+    ]
+
+
 def test_exportar_en_lote_combinado_devuelve_un_pdf(cliente, tmp_path):
     _subir_plantilla(cliente, tmp_path)
     cliente.post("/publicadores", data={"nombre_completo": "Perez Ana"})

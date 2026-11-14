@@ -13,14 +13,32 @@
         {% for grupo in grupos %}<option value="{{ grupo.id }}">{{ grupo.nombre }}</option>{% endfor %}
       </select></label>
     <label>Formato
-      <select name="formato">
+      <select name="formato" id="formato">
         <option value="zip">ZIP con un PDF por publicador</option>
         <option value="combinado">Un solo PDF para imprimir</option>
       </select></label>
+    <label id="opcion-separar"><input type="checkbox" name="separar_precursores" value="true">
+      Separar a los precursores regulares del año en una carpeta aparte</label>
     <label><input type="checkbox" name="aplanado" value="true"> Solo lectura (aplanado)</label>
     <div class="acciones">
       <button type="submit" class="btn-primario">Exportar</button>
     </div>
   </form>
 </div>
+<script>
+  // La carpeta aparte solo existe dentro del ZIP: en el PDF combinado se oculta
+  // y se desactiva para que no viaje en el formulario.
+  (function () {
+    const formato = document.getElementById("formato");
+    const opcion = document.getElementById("opcion-separar");
+    const casilla = opcion.querySelector("input");
+    function sincronizar() {
+      const esZip = formato.value === "zip";
+      opcion.hidden = !esZip;
+      casilla.disabled = !esZip;
+    }
+    formato.addEventListener("change", sincronizar);
+    sincronizar();
+  })();
+</script>
 {% endblock %}

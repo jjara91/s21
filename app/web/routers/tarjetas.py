@@ -147,6 +147,7 @@ def exportar_lote(
     formato: str = Form("zip"),
     grupo_id: int | None = Form(None),
     aplanado: bool = Form(False),
+    separar_precursores: bool = Form(False),
     sesion: Session = Depends(obtener_sesion),
     _usuario: str = Depends(requerir_sesion),
 ):
@@ -173,7 +174,13 @@ def exportar_lote(
             return _adjunto(
                 f"tarjetas {anio_servicio}.pdf", contenido, "application/pdf"
             )
-        contenido = servicio.zip_de(sesion, ids, anio_servicio, aplanado=aplanado)
+        contenido = servicio.zip_de(
+            sesion,
+            ids,
+            anio_servicio,
+            aplanado=aplanado,
+            separar_precursores=separar_precursores,
+        )
     except servicio.PlantillaAusente:
         return RedirectResponse("/plantilla", status_code=303)
     return _adjunto(f"tarjetas {anio_servicio}.zip", contenido, "application/zip")

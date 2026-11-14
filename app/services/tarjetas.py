@@ -8,7 +8,9 @@ from sqlmodel import Session
 
 from app.config import cargar_config
 from app.pdf import exportar, plantilla
-from app.services import registros
+from app.services import nombramientos, registros
+
+CARPETA_PRECURSORES = "Precursores regulares"
 
 
 class PlantillaAusente(Exception):
@@ -54,13 +56,22 @@ def zip_de(
     anio_servicio: int,
     *,
     aplanado: bool = False,
+    separar_precursores: bool = False,
 ) -> bytes:
+    """Un PDF por publicador; con `separar_precursores`, quien fue precursor
+    regular aunque sea un mes del año va a su propia carpeta dentro del ZIP
+    (el mismo criterio que marca la casilla en la tarjeta)."""
     salida = BytesIO()
     with ZipFile(salida, "w", ZIP_DEFLATED) as archivo:
         for publicador_id in publicador_ids:
             nombre, contenido = pdf_de(
                 sesion, publicador_id, anio_servicio, aplanado=aplanado
             )
+            es_precursor = "precursor_regular" in nombramientos.tipos_en_anio(
+                sesion, publicador_id, anio_servicio
+            )
+            if separar_precursores and es_precursor:
+                nombre = f"{CARPETA_PRECURSORES}/{nombre}"
             archivo.writestr(nombre, contenido)
     return salida.getvalue()
 

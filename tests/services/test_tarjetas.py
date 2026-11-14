@@ -66,6 +66,42 @@ def test_zip_trae_un_pdf_por_publicador(sesion):
         ]
 
 
+def test_zip_separa_a_los_precursores_regulares_en_su_carpeta(sesion):
+    ana = _ana(sesion)  # precursora regular desde sep-2025
+    luis = publicadores.crear(sesion, "Soto Luis")
+
+    contenido = tarjetas.zip_de(
+        sesion, [ana.id, luis.id], 2026, separar_precursores=True
+    )
+
+    with ZipFile(BytesIO(contenido)) as archivo:
+        assert sorted(archivo.namelist()) == [
+            "Precursores regulares/Pérez Gómez Ana María - 2026.pdf",
+            "Soto Luis - 2026.pdf",
+        ]
+
+
+def test_zip_separa_a_quien_fue_precursor_regular_solo_parte_del_anio(sesion):
+    luis = publicadores.crear(sesion, "Soto Luis")
+    nombramientos.crear(
+        sesion, luis.id, "precursor_regular", date(2024, 9, 1), date(2025, 10, 31)
+    )
+    pedro = publicadores.crear(sesion, "Rojas Pedro")
+    nombramientos.crear(
+        sesion, pedro.id, "precursor_regular", date(2023, 9, 1), date(2025, 8, 31)
+    )
+
+    contenido = tarjetas.zip_de(
+        sesion, [luis.id, pedro.id], 2026, separar_precursores=True
+    )
+
+    with ZipFile(BytesIO(contenido)) as archivo:
+        assert sorted(archivo.namelist()) == [
+            "Precursores regulares/Soto Luis - 2026.pdf",
+            "Rojas Pedro - 2026.pdf",
+        ]
+
+
 def test_pdf_combinado_tiene_una_pagina_por_publicador(sesion):
     ana = _ana(sesion)
     luis = publicadores.crear(sesion, "Soto Luis")
